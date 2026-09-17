@@ -1,0 +1,29 @@
+name: PR Convention
+
+on:
+  pull_request:
+    types:
+      - opened
+      - edited
+      - synchronize
+      - reopened
+
+jobs:
+  check-pr-title:
+    name: Check PR Title
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Validate PR title
+        env:
+          PR_TITLE: ${{ github.event.pull_request.title }}
+        run: |
+          if [[ ! "$PR_TITLE" =~ ^\[(Feat|Fix|Refactor|Chore|Docs|Test)\]\ .+ ]]; then
+            echo "PR 제목 형식이 올바르지 않습니다."
+            echo "현재 제목: $PR_TITLE"
+            echo "예시: [Feat] 로그인 기능 구현"
+            echo "허용 타입: Feat, Fix, Refactor, Chore, Docs, Test"
+            exit 1
+          fi
+
+          echo "PR 제목 형식이 올바릅니다."

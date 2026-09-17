@@ -1,0 +1,17 @@
+### Git
+.git
+.github
+
+### Gradle
+.gradle
+build
+
+### IntelliJ IDEA
+.idea
+*.iml
+
+### Documentation
+README.md
+
+### Environment Variables
+.env

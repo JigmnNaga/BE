@@ -1,4 +1,4 @@
-name: CD
+name: Backend CD
 
 on:
   push:
@@ -16,6 +16,7 @@ env:
 
 jobs:
   deploy:
+    name: Deploy
     runs-on: ubuntu-latest
 
     steps:

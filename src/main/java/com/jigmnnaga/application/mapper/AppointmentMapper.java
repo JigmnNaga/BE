@@ -92,20 +92,44 @@ public class AppointmentMapper {
                         .sorted()
                         .toList())
                 .candidateLocations(appointment.getCandidateLocations().stream()
-                        .map(location -> AppointmentDetailResponse.CandidateLocationResponse.builder()
-                                .locationId(location.getId())
-                                .placeName(location.getPlaceName())
-                                .address(location.getAddress())
-                                .latitude(location.getLatitude())
-                                .longitude(location.getLongitude())
-                                .build())
+                        .map(this::toCandidateLocationResponse)
                         .toList())
                 .responseDeadline(appointment.getResponseDeadline())
                 .inviteUrl(inviteUrl)
+                .confirmed(appointment.isConfirmed())
+                .confirmedDate(appointment.getConfirmedDate())
+                .confirmedTime(appointment.getConfirmedTime())
+                .confirmedLocation(appointment.getConfirmedLocation() == null
+                        ? null
+                        : toCandidateLocationResponse(appointment.getConfirmedLocation()))
+                .detailPlace(toDetailPlaceResponse(appointment))
                 .myRole(me.getRole())
                 .joinedCount(participants.size())
                 .scheduleSubmittedCount(scheduleSubmittedCount)
                 .members(members)
+                .build();
+    }
+
+    private AppointmentDetailResponse.CandidateLocationResponse toCandidateLocationResponse(
+            AppointmentCandidateLocation location) {
+        return AppointmentDetailResponse.CandidateLocationResponse.builder()
+                .locationId(location.getId())
+                .placeName(location.getPlaceName())
+                .address(location.getAddress())
+                .latitude(location.getLatitude())
+                .longitude(location.getLongitude())
+                .build();
+    }
+
+    private AppointmentDetailResponse.DetailPlaceResponse toDetailPlaceResponse(Appointment appointment) {
+        if (appointment.getDetailPlaceName() == null) {
+            return null;
+        }
+        return AppointmentDetailResponse.DetailPlaceResponse.builder()
+                .placeName(appointment.getDetailPlaceName())
+                .address(appointment.getDetailPlaceAddress())
+                .latitude(appointment.getDetailPlaceLatitude())
+                .longitude(appointment.getDetailPlaceLongitude())
                 .build();
     }
 }

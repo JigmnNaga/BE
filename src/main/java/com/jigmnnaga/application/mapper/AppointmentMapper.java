@@ -76,6 +76,7 @@ public class AppointmentMapper {
                         .profileImageUrl(participant.getMember().getProfileImageUrl())
                         .role(participant.getRole())
                         .scheduleSubmitted(participant.hasSubmittedSchedule())
+                        .attendanceStatus(participant.getAttendanceStatus())
                         .build())
                 .toList();
 
@@ -104,6 +105,7 @@ public class AppointmentMapper {
                         : toCandidateLocationResponse(appointment.getConfirmedLocation()))
                 .detailPlace(toDetailPlaceResponse(appointment))
                 .myRole(me.getRole())
+                .myAttendanceStatus(me.getAttendanceStatus())
                 .joinedCount(participants.size())
                 .scheduleSubmittedCount(scheduleSubmittedCount)
                 .members(members)

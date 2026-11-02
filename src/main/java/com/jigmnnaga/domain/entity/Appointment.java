@@ -81,6 +81,10 @@ public class Appointment extends BaseEntity {
     }
 
     public void confirmDateTime(LocalDate confirmedDate, LocalTime confirmedTime) {
+        boolean isChanged = !confirmedDate.equals(this.confirmedDate) || !confirmedTime.equals(this.confirmedTime);
+        if (isChanged) {
+            participants.forEach(AppointmentParticipant::resetAttendance);
+        }
         this.confirmedDate = confirmedDate;
         this.confirmedTime = confirmedTime;
     }
@@ -96,6 +100,10 @@ public class Appointment extends BaseEntity {
 
     public boolean isConfirmed() {
         return confirmedDate != null && confirmedLocation != null;
+    }
+
+    public boolean isAppointmentTimePassed(LocalDateTime now) {
+        return isConfirmed() && !now.isBefore(confirmedDate.atTime(confirmedTime));
     }
 
     public boolean isInviteExpired(LocalDateTime now) {

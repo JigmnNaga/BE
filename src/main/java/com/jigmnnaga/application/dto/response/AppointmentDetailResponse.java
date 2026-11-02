@@ -1,6 +1,7 @@
 package com.jigmnnaga.application.dto.response;
 
 import com.fasterxml.jackson.annotation.JsonFormat;
+import com.jigmnnaga.domain.entity.AttendanceStatus;
 import com.jigmnnaga.domain.entity.DateSelectionType;
 import com.jigmnnaga.domain.entity.ParticipantRole;
 import java.time.LocalDate;
@@ -24,6 +25,7 @@ public record AppointmentDetailResponse(
         CandidateLocationResponse confirmedLocation,
         DetailPlaceResponse detailPlace,
         ParticipantRole myRole,
+        AttendanceStatus myAttendanceStatus,
         int joinedCount,
         int scheduleSubmittedCount,
         List<MemberStatusResponse> members
@@ -54,7 +56,8 @@ public record AppointmentDetailResponse(
             String nickname,
             String profileImageUrl,
             ParticipantRole role,
-            boolean scheduleSubmitted
+            boolean scheduleSubmitted,
+            AttendanceStatus attendanceStatus
     ) {
     }
 }

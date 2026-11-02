@@ -17,6 +17,7 @@ import jakarta.persistence.UniqueConstraint;
 import java.util.ArrayList;
 import java.util.List;
 import lombok.AccessLevel;
+import org.hibernate.annotations.ColumnDefault;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -53,6 +54,11 @@ public class AppointmentParticipant extends BaseEntity {
     @Column(nullable = false)
     private ParticipationStatus status;
 
+    @Enumerated(EnumType.STRING)
+    @ColumnDefault("'PENDING'")
+    @Column(nullable = false)
+    private AttendanceStatus attendanceStatus = AttendanceStatus.PENDING;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "preferred_location_id")
     private AppointmentCandidateLocation preferredLocation;
@@ -83,6 +89,14 @@ public class AppointmentParticipant extends BaseEntity {
             availability.assignParticipant(this);
         });
         this.preferredLocation = preferredLocation;
+    }
+
+    public void respondAttendance(AttendanceStatus attendanceStatus) {
+        this.attendanceStatus = attendanceStatus;
+    }
+
+    public void resetAttendance() {
+        this.attendanceStatus = AttendanceStatus.PENDING;
     }
 
     public boolean hasSubmittedSchedule() {

@@ -51,7 +51,7 @@ public class AppointmentCreateUseCase {
         Appointment appointment = appointmentMapper.toAppointment(request, sortedDates, host, generateInviteCode());
         appointmentSaveService.save(appointment);
 
-        String inviteUrl = inviteProperties.baseUrl() + appointment.getInviteCode();
+        String inviteUrl = inviteProperties.inviteUrl(appointment.getInviteCode());
         return appointmentMapper.toCreateResponse(appointment, inviteUrl);
     }
 

@@ -5,7 +5,10 @@ import com.jigmnnaga.application.dto.response.AppointmentCreateResponse;
 import com.jigmnnaga.domain.entity.Appointment;
 import com.jigmnnaga.domain.entity.AppointmentCandidateDate;
 import com.jigmnnaga.domain.entity.AppointmentCandidateLocation;
+import com.jigmnnaga.domain.entity.AppointmentParticipant;
 import com.jigmnnaga.domain.entity.Member;
+import com.jigmnnaga.domain.entity.ParticipantRole;
+import com.jigmnnaga.domain.entity.ParticipationStatus;
 import java.time.LocalDate;
 import java.util.List;
 import org.springframework.stereotype.Component;
@@ -16,7 +19,6 @@ public class AppointmentMapper {
     public Appointment toAppointment(AppointmentCreateRequest request, List<LocalDate> sortedDates,
                                      Member host, String inviteCode) {
         Appointment appointment = Appointment.builder()
-                .host(host)
                 .title(request.title().strip())
                 .dateSelectionType(request.dateSelectionType())
                 .responseDeadline(request.responseDeadline())
@@ -35,6 +37,12 @@ public class AppointmentMapper {
                         .latitude(location.latitude())
                         .longitude(location.longitude())
                         .build()));
+
+        appointment.addParticipant(AppointmentParticipant.builder()
+                .member(host)
+                .role(ParticipantRole.HOST)
+                .status(ParticipationStatus.ACCEPTED)
+                .build());
 
         return appointment;
     }

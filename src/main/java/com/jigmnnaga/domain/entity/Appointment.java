@@ -5,12 +5,9 @@ import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
-import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
-import jakarta.persistence.JoinColumn;
-import jakarta.persistence.ManyToOne;
 import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
 import java.time.LocalDateTime;
@@ -31,10 +28,6 @@ public class Appointment extends BaseEntity {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "host_id", nullable = false)
-    private Member host;
-
     @Column(nullable = false, length = 30)
     private String title;
 
@@ -54,10 +47,12 @@ public class Appointment extends BaseEntity {
     @OneToMany(mappedBy = "appointment", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<AppointmentCandidateLocation> candidateLocations = new ArrayList<>();
 
+    @OneToMany(mappedBy = "appointment", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<AppointmentParticipant> participants = new ArrayList<>();
+
     @Builder
-    private Appointment(Member host, String title, DateSelectionType dateSelectionType,
+    private Appointment(String title, DateSelectionType dateSelectionType,
                         LocalDateTime responseDeadline, String inviteCode) {
-        this.host = host;
         this.title = title;
         this.dateSelectionType = dateSelectionType;
         this.responseDeadline = responseDeadline;
@@ -72,5 +67,10 @@ public class Appointment extends BaseEntity {
     public void addCandidateLocation(AppointmentCandidateLocation candidateLocation) {
         candidateLocations.add(candidateLocation);
         candidateLocation.assignAppointment(this);
+    }
+
+    public void addParticipant(AppointmentParticipant participant) {
+        participants.add(participant);
+        participant.assignAppointment(this);
     }
 }

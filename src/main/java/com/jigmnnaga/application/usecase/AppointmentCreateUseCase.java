@@ -13,9 +13,9 @@ import com.jigmnnaga.domain.service.AppointmentSaveService;
 import com.jigmnnaga.domain.service.MemberGetService;
 import com.jigmnnaga.global.config.InviteProperties;
 import com.jigmnnaga.global.util.InviteCodeGenerator;
+import com.jigmnnaga.global.util.TimeZones;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.time.ZoneId;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
@@ -27,7 +27,6 @@ import org.springframework.transaction.annotation.Transactional;
 @EnableConfigurationProperties(InviteProperties.class)
 public class AppointmentCreateUseCase {
 
-    private static final ZoneId SEOUL = ZoneId.of("Asia/Seoul");
     private static final int MAX_INVITE_CODE_ATTEMPTS = 5;
 
     private final MemberGetService memberGetService;
@@ -60,7 +59,7 @@ public class AppointmentCreateUseCase {
         if (requestedSize != sortedDates.size()) {
             throw new BusinessException(ErrorCode.DUPLICATE_CANDIDATE_DATE);
         }
-        if (sortedDates.getFirst().isBefore(LocalDate.now(SEOUL))) {
+        if (sortedDates.getFirst().isBefore(LocalDate.now(TimeZones.SEOUL))) {
             throw new BusinessException(ErrorCode.PAST_CANDIDATE_DATE);
         }
 
@@ -81,7 +80,7 @@ public class AppointmentCreateUseCase {
     }
 
     private void validateResponseDeadline(LocalDateTime responseDeadline, LocalDate firstCandidateDate) {
-        if (!responseDeadline.isAfter(LocalDateTime.now(SEOUL))
+        if (!responseDeadline.isAfter(LocalDateTime.now(TimeZones.SEOUL))
                 || !responseDeadline.isBefore(firstCandidateDate.atStartOfDay())) {
             throw new BusinessException(ErrorCode.INVALID_RESPONSE_DEADLINE);
         }

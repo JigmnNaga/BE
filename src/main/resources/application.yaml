@@ -16,3 +16,6 @@ jwt:
   secret: ${JWT_SECRET}
   access-expiration: ${JWT_ACCESS_EXPIRATION:3600000}
   refresh-expiration: ${JWT_REFRESH_EXPIRATION:1209600000}
+
+invite:
+  base-url: ${INVITE_BASE_URL:https://jigeumnaga.app/i/}

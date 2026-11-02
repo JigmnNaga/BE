@@ -15,4 +15,8 @@ public class MemberGetService {
     public Optional<Member> findByKakaoId(Long kakaoId) {
         return memberRepository.findByKakaoId(kakaoId);
     }
+
+    public Optional<Member> findById(Long memberId) {
+        return memberRepository.findById(memberId);
+    }
 }

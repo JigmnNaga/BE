@@ -3,6 +3,7 @@ package com.jigmnnaga.domain.service;
 import com.jigmnnaga.domain.entity.Appointment;
 import com.jigmnnaga.domain.entity.AppointmentParticipant;
 import com.jigmnnaga.domain.entity.Member;
+import com.jigmnnaga.domain.entity.ParticipationStatus;
 import com.jigmnnaga.domain.repository.AppointmentParticipantRepository;
 import java.util.List;
 import java.util.Optional;
@@ -19,8 +20,14 @@ public class AppointmentParticipantGetService {
         return appointmentParticipantRepository.findByAppointmentAndMember(appointment, member);
     }
 
-    public Optional<AppointmentParticipant> findByAppointmentIdAndMemberId(Long appointmentId, Long memberId) {
-        return appointmentParticipantRepository.findByAppointmentIdAndMemberId(appointmentId, memberId);
+    public Optional<AppointmentParticipant> findAcceptedByAppointmentIdAndMemberId(Long appointmentId, Long memberId) {
+        return appointmentParticipantRepository.findByAppointmentIdAndMemberId(appointmentId, memberId)
+                .filter(participant -> participant.getStatus() == ParticipationStatus.ACCEPTED);
+    }
+
+    public List<AppointmentParticipant> findAllAcceptedWithMemberByAppointmentId(Long appointmentId) {
+        return appointmentParticipantRepository.findAllWithMemberByAppointmentIdAndStatus(
+                appointmentId, ParticipationStatus.ACCEPTED);
     }
 
     public List<AppointmentParticipant> findAllWithMemberByAppointment(Appointment appointment) {

@@ -6,4 +6,8 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 public record InviteProperties(
         String baseUrl
 ) {
+
+    public String inviteUrl(String inviteCode) {
+        return baseUrl + inviteCode;
+    }
 }

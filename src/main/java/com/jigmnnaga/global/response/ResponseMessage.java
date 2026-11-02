@@ -13,7 +13,9 @@ public enum ResponseMessage {
     INVITE_ACCEPT_SUCCESS("약속을 수락했습니다."),
     INVITE_DECLINE_SUCCESS("약속을 거절했습니다."),
     SCHEDULE_SUBMIT_SUCCESS("일정 선택을 완료했습니다."),
-    SCHEDULE_GET_SUCCESS("내 일정 선택을 조회했습니다.");
+    SCHEDULE_GET_SUCCESS("내 일정 선택을 조회했습니다."),
+    APPOINTMENT_DETAIL_GET_SUCCESS("약속 상세 정보를 조회했습니다."),
+    SCHEDULE_STATUS_GET_SUCCESS("일정 응답 현황을 조회했습니다.");
 
     private final String message;
 }

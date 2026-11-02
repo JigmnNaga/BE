@@ -8,7 +8,6 @@ import com.jigmnnaga.domain.entity.Appointment;
 import com.jigmnnaga.domain.entity.AppointmentCandidateDate;
 import com.jigmnnaga.domain.entity.AppointmentCandidateLocation;
 import com.jigmnnaga.domain.entity.AppointmentParticipant;
-import com.jigmnnaga.domain.entity.ParticipationStatus;
 import com.jigmnnaga.domain.service.AppointmentParticipantGetService;
 import java.time.LocalDate;
 import java.util.HashSet;
@@ -29,8 +28,7 @@ public class ScheduleSubmitUseCase {
     @Transactional
     public void submitSchedule(Long memberId, Long appointmentId, ScheduleSubmitRequest request) {
         AppointmentParticipant participant = appointmentParticipantGetService
-                .findByAppointmentIdAndMemberId(appointmentId, memberId)
-                .filter(found -> found.getStatus() == ParticipationStatus.ACCEPTED)
+                .findAcceptedByAppointmentIdAndMemberId(appointmentId, memberId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.NOT_APPOINTMENT_PARTICIPANT));
         Appointment appointment = participant.getAppointment();
 

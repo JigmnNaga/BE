@@ -13,3 +13,6 @@ jwt:
   secret: test-jwt-secret-key-for-application-context-loading-only
   access-expiration: 3600000
   refresh-expiration: 1209600000
+
+invite:
+  base-url: https://jigeumnaga.app/i/

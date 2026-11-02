@@ -25,7 +25,13 @@ public enum ErrorCode {
     INVITE_NOT_FOUND(HttpStatus.NOT_FOUND, "존재하지 않는 초대 링크입니다."),
     INVITE_EXPIRED(HttpStatus.BAD_REQUEST, "응답 기한이 지나 만료된 초대 링크입니다."),
     HOST_CANNOT_RESPOND(HttpStatus.BAD_REQUEST, "방장은 초대에 응답할 수 없습니다."),
-    ALREADY_RESPONDED(HttpStatus.CONFLICT, "이미 초대에 응답했습니다.");
+    ALREADY_RESPONDED(HttpStatus.CONFLICT, "이미 초대에 응답했습니다."),
+
+    NOT_APPOINTMENT_PARTICIPANT(HttpStatus.FORBIDDEN, "약속에 참여한 멤버만 이용할 수 있습니다."),
+    INVALID_AVAILABLE_DATE(HttpStatus.BAD_REQUEST, "후보 날짜에 포함되지 않은 날짜입니다."),
+    DUPLICATE_AVAILABLE_DATE(HttpStatus.BAD_REQUEST, "같은 날짜를 중복해서 선택할 수 없습니다."),
+    INVALID_AVAILABLE_TIME(HttpStatus.BAD_REQUEST, "시작 시간은 종료 시간보다 빨라야 합니다."),
+    INVALID_PREFERRED_LOCATION(HttpStatus.BAD_REQUEST, "약속의 후보 장소가 아닙니다.");
 
     private final HttpStatus httpStatus;
     private final String message;

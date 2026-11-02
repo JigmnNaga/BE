@@ -1,5 +1,6 @@
 package com.jigmnnaga.domain.entity;
 
+import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -10,8 +11,11 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
+import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
+import java.util.ArrayList;
+import java.util.List;
 import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.Getter;
@@ -49,6 +53,13 @@ public class AppointmentParticipant extends BaseEntity {
     @Column(nullable = false)
     private ParticipationStatus status;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "preferred_location_id")
+    private AppointmentCandidateLocation preferredLocation;
+
+    @OneToMany(mappedBy = "participant", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<ParticipantAvailability> availabilities = new ArrayList<>();
+
     @Builder
     private AppointmentParticipant(Member member, ParticipantRole role, ParticipationStatus status) {
         this.member = member;
@@ -62,6 +73,20 @@ public class AppointmentParticipant extends BaseEntity {
 
     public void decline() {
         this.status = ParticipationStatus.DECLINED;
+    }
+
+    public void updateSchedule(List<ParticipantAvailability> newAvailabilities,
+                               AppointmentCandidateLocation preferredLocation) {
+        availabilities.clear();
+        newAvailabilities.forEach(availability -> {
+            availabilities.add(availability);
+            availability.assignParticipant(this);
+        });
+        this.preferredLocation = preferredLocation;
+    }
+
+    public boolean hasSubmittedSchedule() {
+        return !availabilities.isEmpty();
     }
 
     public boolean isHost() {

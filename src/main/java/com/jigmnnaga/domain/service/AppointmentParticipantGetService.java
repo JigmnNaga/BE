@@ -19,6 +19,10 @@ public class AppointmentParticipantGetService {
         return appointmentParticipantRepository.findByAppointmentAndMember(appointment, member);
     }
 
+    public Optional<AppointmentParticipant> findByAppointmentIdAndMemberId(Long appointmentId, Long memberId) {
+        return appointmentParticipantRepository.findByAppointmentIdAndMemberId(appointmentId, memberId);
+    }
+
     public List<AppointmentParticipant> findAllWithMemberByAppointment(Appointment appointment) {
         return appointmentParticipantRepository.findAllWithMemberByAppointment(appointment);
     }

@@ -1,9 +1,11 @@
 package com.jigmnnaga.application.dto.response;
 
+import com.fasterxml.jackson.annotation.JsonFormat;
 import com.jigmnnaga.domain.entity.DateSelectionType;
 import com.jigmnnaga.domain.entity.ParticipantRole;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.util.List;
 import lombok.Builder;
 
@@ -16,6 +18,11 @@ public record AppointmentDetailResponse(
         List<CandidateLocationResponse> candidateLocations,
         LocalDateTime responseDeadline,
         String inviteUrl,
+        boolean confirmed,
+        LocalDate confirmedDate,
+        @JsonFormat(pattern = "HH:mm") LocalTime confirmedTime,
+        CandidateLocationResponse confirmedLocation,
+        DetailPlaceResponse detailPlace,
         ParticipantRole myRole,
         int joinedCount,
         int scheduleSubmittedCount,
@@ -25,6 +32,15 @@ public record AppointmentDetailResponse(
     @Builder
     public record CandidateLocationResponse(
             Long locationId,
+            String placeName,
+            String address,
+            Double latitude,
+            Double longitude
+    ) {
+    }
+
+    @Builder
+    public record DetailPlaceResponse(
             String placeName,
             String address,
             Double latitude,

@@ -59,6 +59,10 @@ public class Appointment extends BaseEntity {
         this.inviteCode = inviteCode;
     }
 
+    public boolean isInviteExpired(LocalDateTime now) {
+        return !now.isBefore(responseDeadline);
+    }
+
     public void addCandidateDate(AppointmentCandidateDate candidateDate) {
         candidateDates.add(candidateDate);
         candidateDate.assignAppointment(this);

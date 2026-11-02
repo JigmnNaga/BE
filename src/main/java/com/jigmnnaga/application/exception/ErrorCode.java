@@ -20,7 +20,12 @@ public enum ErrorCode {
     PAST_CANDIDATE_DATE(HttpStatus.BAD_REQUEST, "지난 날짜는 후보 날짜로 선택할 수 없습니다."),
     INVALID_CANDIDATE_DATES(HttpStatus.BAD_REQUEST, "날짜 선택 방식에 맞지 않는 후보 날짜입니다."),
     INVALID_RESPONSE_DEADLINE(HttpStatus.BAD_REQUEST, "응답 기한은 현재 이후이면서 첫 후보 날짜 이전이어야 합니다."),
-    INVITE_CODE_GENERATION_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "초대 코드 생성에 실패했습니다.");
+    INVITE_CODE_GENERATION_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "초대 코드 생성에 실패했습니다."),
+
+    INVITE_NOT_FOUND(HttpStatus.NOT_FOUND, "존재하지 않는 초대 링크입니다."),
+    INVITE_EXPIRED(HttpStatus.BAD_REQUEST, "응답 기한이 지나 만료된 초대 링크입니다."),
+    HOST_CANNOT_RESPOND(HttpStatus.BAD_REQUEST, "방장은 초대에 응답할 수 없습니다."),
+    ALREADY_RESPONDED(HttpStatus.CONFLICT, "이미 초대에 응답했습니다.");
 
     private final HttpStatus httpStatus;
     private final String message;

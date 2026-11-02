@@ -56,6 +56,22 @@ public class AppointmentParticipant extends BaseEntity {
         this.status = status;
     }
 
+    public void accept() {
+        this.status = ParticipationStatus.ACCEPTED;
+    }
+
+    public void decline() {
+        this.status = ParticipationStatus.DECLINED;
+    }
+
+    public boolean isHost() {
+        return role == ParticipantRole.HOST;
+    }
+
+    public boolean hasResponded() {
+        return status != ParticipationStatus.PENDING;
+    }
+
     void assignAppointment(Appointment appointment) {
         this.appointment = appointment;
     }

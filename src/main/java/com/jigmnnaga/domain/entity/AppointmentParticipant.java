@@ -14,13 +14,15 @@ import jakarta.persistence.ManyToOne;
 import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 import lombok.AccessLevel;
-import org.hibernate.annotations.ColumnDefault;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import org.hibernate.annotations.ColumnDefault;
 
 @Getter
 @Entity
@@ -89,6 +91,16 @@ public class AppointmentParticipant extends BaseEntity {
             availability.assignParticipant(this);
         });
         this.preferredLocation = preferredLocation;
+    }
+
+    public void removeAvailabilitiesNotIn(Set<LocalDate> candidateDates) {
+        availabilities.removeIf(availability -> !candidateDates.contains(availability.getAvailableDate()));
+    }
+
+    public void clearPreferredLocationIfIn(List<AppointmentCandidateLocation> locations) {
+        if (locations.contains(preferredLocation)) {
+            this.preferredLocation = null;
+        }
     }
 
     public void respondAttendance(AttendanceStatus attendanceStatus) {

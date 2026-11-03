@@ -51,6 +51,9 @@ public class InviteRespondUseCase {
         Appointment appointment = appointmentGetService.findByInviteCode(inviteCode)
                 .orElseThrow(() -> new BusinessException(ErrorCode.INVITE_NOT_FOUND));
 
+        if (appointment.isCanceled()) {
+            throw new BusinessException(ErrorCode.APPOINTMENT_CANCELED);
+        }
         if (appointment.isInviteExpired(LocalDateTime.now(TimeZones.SEOUL))) {
             throw new BusinessException(ErrorCode.INVITE_EXPIRED);
         }

@@ -45,6 +45,7 @@ public class MyAppointmentGetUseCase {
         LocalDateTime now = LocalDateTime.now(TimeZones.SEOUL);
 
         return getMyAcceptedAppointments(memberId).stream()
+                .filter(appointment -> !appointment.isCanceled())
                 .filter(appointment -> appointment.getConfirmedDate() != null && appointment.isUpcoming(now))
                 .min(Comparator.comparing(Appointment::getConfirmedDateTime))
                 .map(myAppointmentMapper::toMyAppointmentResponse)
@@ -58,6 +59,7 @@ public class MyAppointmentGetUseCase {
                         memberId, month.atDay(1), month.atEndOfMonth())
                 .stream()
                 .map(AppointmentParticipant::getAppointment)
+                .filter(appointment -> !appointment.isCanceled())
                 .toList();
 
         return myAppointmentMapper.toCalendarResponse(appointments);

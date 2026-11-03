@@ -43,6 +43,7 @@ public class InviteMapper {
         return InviteInfoResponse.builder()
                 .appointmentId(appointment.getId())
                 .title(appointment.getTitle())
+                .canceled(appointment.isCanceled())
                 .hostNickname(hostNickname)
                 .responseDeadline(appointment.getResponseDeadline())
                 .expired(expired)

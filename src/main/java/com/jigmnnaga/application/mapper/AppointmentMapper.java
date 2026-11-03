@@ -32,13 +32,7 @@ public class AppointmentMapper {
                         .candidateDate(date)
                         .build()));
 
-        request.candidateLocations().forEach(location -> appointment.addCandidateLocation(
-                AppointmentCandidateLocation.builder()
-                        .placeName(location.placeName())
-                        .address(location.address())
-                        .latitude(location.latitude())
-                        .longitude(location.longitude())
-                        .build()));
+        toCandidateLocations(request.candidateLocations()).forEach(appointment::addCandidateLocation);
 
         appointment.addParticipant(AppointmentParticipant.builder()
                 .member(host)
@@ -47,6 +41,18 @@ public class AppointmentMapper {
                 .build());
 
         return appointment;
+    }
+
+    public List<AppointmentCandidateLocation> toCandidateLocations(
+            List<AppointmentCreateRequest.CandidateLocationRequest> locations) {
+        return locations.stream()
+                .map(location -> AppointmentCandidateLocation.builder()
+                        .placeName(location.placeName())
+                        .address(location.address())
+                        .latitude(location.latitude())
+                        .longitude(location.longitude())
+                        .build())
+                .toList();
     }
 
     public AppointmentCreateResponse toCreateResponse(Appointment appointment, String inviteUrl) {
@@ -87,6 +93,7 @@ public class AppointmentMapper {
         return AppointmentDetailResponse.builder()
                 .appointmentId(appointment.getId())
                 .title(appointment.getTitle())
+                .canceled(appointment.isCanceled())
                 .dateSelectionType(appointment.getDateSelectionType())
                 .candidateDates(appointment.getCandidateDates().stream()
                         .map(AppointmentCandidateDate::getCandidateDate)

@@ -9,6 +9,7 @@ import lombok.Builder;
 public record MyAppointmentResponse(
         Long appointmentId,
         String title,
+        boolean canceled,
         boolean confirmed,
         LocalDate confirmedDate,
         @JsonFormat(pattern = "HH:mm") LocalTime confirmedTime,

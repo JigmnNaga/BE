@@ -18,7 +18,10 @@ public enum ResponseMessage {
     SCHEDULE_STATUS_GET_SUCCESS("일정 응답 현황을 조회했습니다."),
     CONFIRM_DATE_TIME_SUCCESS("약속 날짜와 시간을 확정했습니다."),
     CONFIRM_LOCATION_SUCCESS("약속 장소를 확정했습니다."),
-    ATTENDANCE_RESPOND_SUCCESS("참석 응답을 저장했습니다.");
+    ATTENDANCE_RESPOND_SUCCESS("참석 응답을 저장했습니다."),
+    MY_APPOINTMENTS_GET_SUCCESS("내 약속 목록을 조회했습니다."),
+    NEXT_APPOINTMENT_GET_SUCCESS("다음 약속을 조회했습니다."),
+    CALENDAR_GET_SUCCESS("월별 캘린더를 조회했습니다.");
 
     private final String message;
 }

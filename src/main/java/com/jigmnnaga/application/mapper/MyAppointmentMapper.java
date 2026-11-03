@@ -18,6 +18,7 @@ public class MyAppointmentMapper {
         return MyAppointmentResponse.builder()
                 .appointmentId(appointment.getId())
                 .title(appointment.getTitle())
+                .canceled(appointment.isCanceled())
                 .confirmed(appointment.isConfirmed())
                 .confirmedDate(appointment.getConfirmedDate())
                 .confirmedTime(appointment.getConfirmedTime())

@@ -14,6 +14,7 @@ import lombok.Builder;
 public record AppointmentDetailResponse(
         Long appointmentId,
         String title,
+        boolean canceled,
         DateSelectionType dateSelectionType,
         List<LocalDate> candidateDates,
         List<CandidateLocationResponse> candidateLocations,

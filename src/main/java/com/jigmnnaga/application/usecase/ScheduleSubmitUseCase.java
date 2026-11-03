@@ -31,6 +31,9 @@ public class ScheduleSubmitUseCase {
                 .findAcceptedByAppointmentIdAndMemberId(appointmentId, memberId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.NOT_APPOINTMENT_PARTICIPANT));
         Appointment appointment = participant.getAppointment();
+        if (appointment.isCanceled()) {
+            throw new BusinessException(ErrorCode.APPOINTMENT_CANCELED);
+        }
 
         validateAvailabilities(appointment, request.availabilities());
         AppointmentCandidateLocation preferredLocation = getPreferredLocation(appointment, request.preferredLocationId());

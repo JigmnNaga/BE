@@ -21,7 +21,10 @@ public enum ResponseMessage {
     ATTENDANCE_RESPOND_SUCCESS("참석 응답을 저장했습니다."),
     MY_APPOINTMENTS_GET_SUCCESS("내 약속 목록을 조회했습니다."),
     NEXT_APPOINTMENT_GET_SUCCESS("다음 약속을 조회했습니다."),
-    CALENDAR_GET_SUCCESS("월별 캘린더를 조회했습니다.");
+    CALENDAR_GET_SUCCESS("월별 캘린더를 조회했습니다."),
+    APPOINTMENT_UPDATE_SUCCESS("약속 정보를 변경했습니다."),
+    APPOINTMENT_CANCEL_SUCCESS("약속을 취소했습니다."),
+    APPOINTMENT_DELETE_SUCCESS("약속방을 삭제했습니다.");
 
     private final String message;
 }

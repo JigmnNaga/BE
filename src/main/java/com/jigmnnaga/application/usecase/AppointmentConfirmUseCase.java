@@ -4,10 +4,9 @@ import com.jigmnnaga.application.dto.request.ConfirmDateTimeRequest;
 import com.jigmnnaga.application.dto.request.ConfirmLocationRequest;
 import com.jigmnnaga.application.exception.BusinessException;
 import com.jigmnnaga.application.exception.ErrorCode;
+import com.jigmnnaga.application.validator.AppointmentAccessValidator;
 import com.jigmnnaga.domain.entity.Appointment;
 import com.jigmnnaga.domain.entity.AppointmentCandidateLocation;
-import com.jigmnnaga.domain.entity.AppointmentParticipant;
-import com.jigmnnaga.domain.service.AppointmentParticipantGetService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
@@ -16,11 +15,12 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 public class AppointmentConfirmUseCase {
 
-    private final AppointmentParticipantGetService appointmentParticipantGetService;
+    private final AppointmentAccessValidator appointmentAccessValidator;
 
     @Transactional
     public void confirmDateTime(Long memberId, Long appointmentId, ConfirmDateTimeRequest request) {
-        Appointment appointment = getHostAppointment(memberId, appointmentId);
+        Appointment appointment = appointmentAccessValidator.getHostAppointment(memberId, appointmentId);
+        appointmentAccessValidator.validateNotCanceled(appointment);
 
         boolean isCandidateDate = appointment.getCandidateDates().stream()
                 .anyMatch(candidateDate -> candidateDate.getCandidateDate().equals(request.date()));
@@ -33,7 +33,8 @@ public class AppointmentConfirmUseCase {
 
     @Transactional
     public void confirmLocation(Long memberId, Long appointmentId, ConfirmLocationRequest request) {
-        Appointment appointment = getHostAppointment(memberId, appointmentId);
+        Appointment appointment = appointmentAccessValidator.getHostAppointment(memberId, appointmentId);
+        appointmentAccessValidator.validateNotCanceled(appointment);
 
         AppointmentCandidateLocation location = appointment.getCandidateLocations().stream()
                 .filter(candidateLocation -> candidateLocation.getId().equals(request.locationId()))
@@ -47,15 +48,5 @@ public class AppointmentConfirmUseCase {
         }
         appointment.confirmLocation(location, detailPlace.placeName(), detailPlace.address(),
                 detailPlace.latitude(), detailPlace.longitude());
-    }
-
-    private Appointment getHostAppointment(Long memberId, Long appointmentId) {
-        AppointmentParticipant participant = appointmentParticipantGetService
-                .findAcceptedByAppointmentIdAndMemberId(appointmentId, memberId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.NOT_APPOINTMENT_PARTICIPANT));
-        if (!participant.isHost()) {
-            throw new BusinessException(ErrorCode.NOT_APPOINTMENT_HOST);
-        }
-        return participant.getAppointment();
     }
 }

@@ -18,10 +18,12 @@ import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import org.hibernate.annotations.ColumnDefault;
 
 @Getter
 @Entity
@@ -62,6 +64,10 @@ public class Appointment extends BaseEntity {
 
     private Double detailPlaceLongitude;
 
+    @ColumnDefault("false")
+    @Column(nullable = false)
+    private boolean canceled = false;
+
     @OneToMany(mappedBy = "appointment", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<AppointmentCandidateDate> candidateDates = new ArrayList<>();
 
@@ -96,6 +102,53 @@ public class Appointment extends BaseEntity {
         this.detailPlaceAddress = detailPlaceAddress;
         this.detailPlaceLatitude = detailPlaceLatitude;
         this.detailPlaceLongitude = detailPlaceLongitude;
+    }
+
+    public void updateTitle(String title) {
+        this.title = title;
+    }
+
+    public void updateCandidateDates(DateSelectionType dateSelectionType, List<LocalDate> newCandidateDates) {
+        this.dateSelectionType = dateSelectionType;
+        candidateDates.clear();
+        newCandidateDates.forEach(date -> addCandidateDate(AppointmentCandidateDate.builder()
+                .candidateDate(date)
+                .build()));
+
+        Set<LocalDate> dateSet = Set.copyOf(newCandidateDates);
+        participants.forEach(participant -> participant.removeAvailabilitiesNotIn(dateSet));
+        if (confirmedDate != null && !dateSet.contains(confirmedDate)) {
+            this.confirmedDate = null;
+            this.confirmedTime = null;
+            participants.forEach(AppointmentParticipant::resetAttendance);
+        }
+    }
+
+    public void updateCandidateLocations(Set<Long> keepLocationIds,
+                                         List<AppointmentCandidateLocation> newLocations) {
+        List<AppointmentCandidateLocation> removedLocations = candidateLocations.stream()
+                .filter(location -> !keepLocationIds.contains(location.getId()))
+                .toList();
+
+        participants.forEach(participant -> participant.clearPreferredLocationIfIn(removedLocations));
+        if (removedLocations.contains(confirmedLocation)) {
+            clearConfirmedLocation();
+        }
+        candidateLocations.removeAll(removedLocations);
+        newLocations.forEach(this::addCandidateLocation);
+    }
+
+    public void updateResponseDeadline(LocalDateTime responseDeadline) {
+        this.responseDeadline = responseDeadline;
+    }
+
+    public void cancel() {
+        this.canceled = true;
+    }
+
+    public void clearReferencesForDelete() {
+        clearConfirmedLocation();
+        participants.forEach(participant -> participant.clearPreferredLocationIfIn(candidateLocations));
     }
 
     public boolean isConfirmed() {
@@ -143,6 +196,10 @@ public class Appointment extends BaseEntity {
 
     public boolean isInviteExpired(LocalDateTime now) {
         return !now.isBefore(responseDeadline);
+    }
+
+    private void clearConfirmedLocation() {
+        confirmLocation(null, null, null, null, null);
     }
 
     public void addCandidateDate(AppointmentCandidateDate candidateDate) {

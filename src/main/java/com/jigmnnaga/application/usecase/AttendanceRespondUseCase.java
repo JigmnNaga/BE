@@ -30,6 +30,9 @@ public class AttendanceRespondUseCase {
                 .orElseThrow(() -> new BusinessException(ErrorCode.NOT_APPOINTMENT_PARTICIPANT));
         Appointment appointment = participant.getAppointment();
 
+        if (appointment.isCanceled()) {
+            throw new BusinessException(ErrorCode.APPOINTMENT_CANCELED);
+        }
         if (!appointment.isConfirmed()) {
             throw new BusinessException(ErrorCode.APPOINTMENT_NOT_CONFIRMED);
         }

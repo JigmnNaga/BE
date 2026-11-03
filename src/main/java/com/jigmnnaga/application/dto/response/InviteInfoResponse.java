@@ -9,6 +9,7 @@ import lombok.Builder;
 public record InviteInfoResponse(
         Long appointmentId,
         String title,
+        boolean canceled,
         String hostNickname,
         LocalDateTime responseDeadline,
         boolean expired,

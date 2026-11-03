@@ -5,6 +5,7 @@ import com.jigmnnaga.domain.entity.AppointmentParticipant;
 import com.jigmnnaga.domain.entity.Member;
 import com.jigmnnaga.domain.entity.ParticipationStatus;
 import com.jigmnnaga.domain.repository.AppointmentParticipantRepository;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
@@ -32,5 +33,16 @@ public class AppointmentParticipantGetService {
 
     public List<AppointmentParticipant> findAllWithMemberByAppointment(Appointment appointment) {
         return appointmentParticipantRepository.findAllWithMemberByAppointment(appointment);
+    }
+
+    public List<AppointmentParticipant> findAllAcceptedWithAppointmentByMemberId(Long memberId) {
+        return appointmentParticipantRepository.findAllWithAppointmentByMemberIdAndStatus(
+                memberId, ParticipationStatus.ACCEPTED);
+    }
+
+    public List<AppointmentParticipant> findAllAcceptedWithAppointmentByMemberIdAndConfirmedDateBetween(
+            Long memberId, LocalDate startDate, LocalDate endDate) {
+        return appointmentParticipantRepository.findAllWithAppointmentByMemberIdAndStatusAndConfirmedDateBetween(
+                memberId, ParticipationStatus.ACCEPTED, startDate, endDate);
     }
 }

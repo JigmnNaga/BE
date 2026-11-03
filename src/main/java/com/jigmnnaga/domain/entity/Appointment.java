@@ -102,8 +102,43 @@ public class Appointment extends BaseEntity {
         return confirmedDate != null && confirmedLocation != null;
     }
 
+    public boolean isUpcoming(LocalDateTime now) {
+        if (confirmedDate != null) {
+            return !now.isAfter(getConfirmedDateTime());
+        }
+        return !getLastCandidateDate().isBefore(now.toLocalDate());
+    }
+
+    public LocalDateTime getConfirmedDateTime() {
+        return confirmedDate == null ? null : confirmedDate.atTime(confirmedTime);
+    }
+
+    public LocalDateTime getScheduledDateTime() {
+        return confirmedDate == null ? getFirstCandidateDate().atStartOfDay() : getConfirmedDateTime();
+    }
+
+    public LocalDate getFirstCandidateDate() {
+        return candidateDates.stream()
+                .map(AppointmentCandidateDate::getCandidateDate)
+                .min(LocalDate::compareTo)
+                .orElseThrow();
+    }
+
+    public LocalDate getLastCandidateDate() {
+        return candidateDates.stream()
+                .map(AppointmentCandidateDate::getCandidateDate)
+                .max(LocalDate::compareTo)
+                .orElseThrow();
+    }
+
+    public int getAcceptedMemberCount() {
+        return (int) participants.stream()
+                .filter(participant -> participant.getStatus() == ParticipationStatus.ACCEPTED)
+                .count();
+    }
+
     public boolean isAppointmentTimePassed(LocalDateTime now) {
-        return isConfirmed() && !now.isBefore(confirmedDate.atTime(confirmedTime));
+        return isConfirmed() && !now.isBefore(getConfirmedDateTime());
     }
 
     public boolean isInviteExpired(LocalDateTime now) {

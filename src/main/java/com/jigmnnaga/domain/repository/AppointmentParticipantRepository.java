@@ -4,6 +4,7 @@ import com.jigmnnaga.domain.entity.Appointment;
 import com.jigmnnaga.domain.entity.AppointmentParticipant;
 import com.jigmnnaga.domain.entity.Member;
 import com.jigmnnaga.domain.entity.ParticipationStatus;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -24,5 +25,22 @@ public interface AppointmentParticipantRepository extends JpaRepository<Appointm
     List<AppointmentParticipant> findAllWithMemberByAppointmentIdAndStatus(
             @Param("appointmentId") Long appointmentId,
             @Param("status") ParticipationStatus status
+    );
+
+    @Query("select p from AppointmentParticipant p join fetch p.appointment "
+            + "where p.member.id = :memberId and p.status = :status")
+    List<AppointmentParticipant> findAllWithAppointmentByMemberIdAndStatus(
+            @Param("memberId") Long memberId,
+            @Param("status") ParticipationStatus status
+    );
+
+    @Query("select p from AppointmentParticipant p join fetch p.appointment a "
+            + "where p.member.id = :memberId and p.status = :status "
+            + "and a.confirmedDate between :startDate and :endDate")
+    List<AppointmentParticipant> findAllWithAppointmentByMemberIdAndStatusAndConfirmedDateBetween(
+            @Param("memberId") Long memberId,
+            @Param("status") ParticipationStatus status,
+            @Param("startDate") LocalDate startDate,
+            @Param("endDate") LocalDate endDate
     );
 }

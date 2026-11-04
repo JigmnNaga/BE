@@ -1,3 +1,4 @@
+
 plugins {
 	id 'java'
 	id 'org.springframework.boot' version '4.1.1'
@@ -17,12 +18,98 @@ repositories {
 	mavenCentral()
 }
 
+// 로컬 개발 환경에서 .env 자동 로딩
+def localEnv = [:]
+def envFile = file('.env')
+
+if (envFile.exists()) {
+	envFile.eachLine('UTF-8') { line ->
+		line = line.trim()
+
+		if (!line || line.startsWith('#')) {
+			return
+		}
+
+		def parts = line.split('=', 2)
+
+		if (parts.length == 2) {
+			def key = parts[0].trim()
+			def value = parts[1].trim()
+
+			if ((value.startsWith('"') && value.endsWith('"')) ||
+					(value.startsWith("'") && value.endsWith("'"))) {
+				value = value.substring(1, value.length() - 1)
+			}
+
+			localEnv[key] = value
+		}
+	}
+}
+
+// 시스템 환경변수 우선, 없으면 .env 사용
+def resolveEnv = { key ->
+	System.getenv(key) ?: localEnv[key]
+}
+
+// 일반 실행: 개발 DB 사용
+tasks.withType(JavaExec).configureEach {
+	localEnv.each { key, value ->
+		if (System.getenv(key) == null) {
+			environment key, value
+		}
+	}
+}
+
+// 테스트 실행: 테스트 DB 사용
+tasks.withType(Test).configureEach {
+
+	// DB 이외의 환경변수 전달
+	localEnv.each { key, value ->
+		if (!(key in [
+				'DB_URL', 'DB_USERNAME', 'DB_PASSWORD',
+				'TEST_DB_URL', 'TEST_DB_USERNAME', 'TEST_DB_PASSWORD'
+		]) && System.getenv(key) == null) {
+			environment key, value
+		}
+	}
+
+	def testDbKeys = [
+			DB_URL: 'TEST_DB_URL',
+			DB_USERNAME: 'TEST_DB_USERNAME',
+			DB_PASSWORD: 'TEST_DB_PASSWORD'
+	]
+
+	if (envFile.exists()) {
+		// 로컬 환경: 테스트 DB 설정 필수
+		testDbKeys.each { target, source ->
+			def value = resolveEnv(source)
+
+			if (!value) {
+				throw new IllegalStateException(
+						"${source} 환경변수를 설정해야 합니다."
+				)
+			}
+
+			environment target, value
+		}
+	} else {
+		// CI 환경: 기존 DB 환경변수 사용
+		['DB_URL', 'DB_USERNAME', 'DB_PASSWORD'].each { key ->
+			if (!System.getenv(key)) {
+				throw new IllegalStateException(
+						"${key} 환경변수를 설정해야 합니다."
+				)
+			}
+		}
+	}
+}
 
 dependencies {
 	// Spring Boot
 	implementation 'org.springframework.boot:spring-boot-starter-webmvc'
 	implementation 'org.springframework.boot:spring-boot-starter-validation'
 	implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
+	implementation 'org.springframework.boot:spring-boot-starter-actuator'
 
 	// API 문서화 (Swagger)
 	implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:3.1.1'
@@ -47,7 +134,6 @@ dependencies {
 	testImplementation 'org.springframework.boot:spring-boot-starter-data-jpa-test'
 	testImplementation 'org.springframework.boot:spring-boot-starter-webmvc-test'
 	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
-	testRuntimeOnly 'com.h2database:h2'
 
 	// 테스트용 Lombok
 	testCompileOnly 'org.projectlombok:lombok'

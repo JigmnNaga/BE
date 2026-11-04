@@ -14,6 +14,20 @@ jobs:
     permissions:
       contents: read
 
+    services:
+      mysql:
+        image: mysql:8.4
+        env:
+          MYSQL_ROOT_PASSWORD: testpassword
+          MYSQL_DATABASE: jigmnnaga_test
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -uroot -ptestpassword"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=10
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -29,4 +43,11 @@ jobs:
         run: chmod +x gradlew
 
       - name: Build and Test
+        env:
+          DB_URL: jdbc:mysql://127.0.0.1:3306/jigmnnaga_test
+          DB_USERNAME: root
+          DB_PASSWORD: testpassword
+          JWT_SECRET: ci-test-jwt-secret-key-at-least-32-bytes-long
+          JWT_ACCESS_EXPIRATION: '3600000'
+          JWT_REFRESH_EXPIRATION: '1209600000'
         run: ./gradlew clean build

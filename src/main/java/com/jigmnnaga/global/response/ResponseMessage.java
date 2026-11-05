@@ -21,6 +21,7 @@ public enum ResponseMessage {
     APPOINTMENT_DETAIL_GET_SUCCESS("약속 상세 정보를 조회했습니다."),
     SCHEDULE_STATUS_GET_SUCCESS("일정 응답 현황을 조회했습니다."),
     SCHEDULE_HEATMAP_GET_SUCCESS("시간대별 가능 인원을 조회했습니다."),
+    CHAT_MESSAGES_GET_SUCCESS("이전 메시지를 조회했습니다."),
     CONFIRM_DATE_TIME_SUCCESS("약속 날짜와 시간을 확정했습니다."),
     CONFIRM_LOCATION_SUCCESS("약속 장소를 확정했습니다."),
     ATTENDANCE_RESPOND_SUCCESS("참석 응답을 저장했습니다."),

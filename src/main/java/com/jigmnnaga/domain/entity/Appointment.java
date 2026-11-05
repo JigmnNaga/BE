@@ -18,6 +18,7 @@ import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import lombok.AccessLevel;
 import lombok.Builder;
@@ -140,6 +141,22 @@ public class Appointment extends BaseEntity {
 
     public void updateResponseDeadline(LocalDateTime responseDeadline) {
         this.responseDeadline = responseDeadline;
+    }
+
+    public Optional<AppointmentParticipant> findAcceptedParticipant(Long memberId) {
+        return participants.stream()
+                .filter(participant -> participant.getStatus() == ParticipationStatus.ACCEPTED)
+                .filter(participant -> participant.getMember().getId().equals(memberId))
+                .findFirst();
+    }
+
+    public void delegateHost(AppointmentParticipant currentHost, AppointmentParticipant newHost) {
+        currentHost.demoteToMember();
+        newHost.promoteToHost();
+    }
+
+    public void removeParticipant(AppointmentParticipant participant) {
+        participants.remove(participant);
     }
 
     public void cancel() {

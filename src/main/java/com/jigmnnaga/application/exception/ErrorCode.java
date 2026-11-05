@@ -55,6 +55,8 @@ public enum ErrorCode {
     INVALID_AVAILABLE_TIME(HttpStatus.BAD_REQUEST, "시작 시간은 종료 시간보다 빨라야 합니다."),
     SCHEDULE_RESPONSE_DEADLINE_PASSED(HttpStatus.BAD_REQUEST, "응답 기한이 지나 가능 시간을 제출하거나 수정할 수 없습니다."),
     INVALID_SLOT_MINUTES(HttpStatus.BAD_REQUEST, "시간표 슬롯 단위는 30분 또는 60분만 가능합니다."),
+    INVALID_SUBSCRIPTION_DESTINATION(HttpStatus.BAD_REQUEST, "구독할 수 없는 채널입니다."),
+    INVALID_CHAT_MESSAGE(HttpStatus.BAD_REQUEST, "메시지는 1자 이상 1000자 이하로 입력해주세요."),
     INVALID_PREFERRED_LOCATION(HttpStatus.BAD_REQUEST, "약속의 후보 장소가 아닙니다.");
 
     private final HttpStatus httpStatus;

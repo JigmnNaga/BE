@@ -5,6 +5,7 @@ import com.jigmnnaga.application.dto.response.AppointmentCreateResponse;
 import com.jigmnnaga.application.exception.BusinessException;
 import com.jigmnnaga.application.exception.ErrorCode;
 import com.jigmnnaga.application.mapper.AppointmentMapper;
+import com.jigmnnaga.application.mapper.ChatMessageMapper;
 import com.jigmnnaga.application.validator.AppointmentValidator;
 import com.jigmnnaga.domain.entity.Appointment;
 import com.jigmnnaga.domain.entity.AppointmentParticipant;
@@ -12,6 +13,7 @@ import com.jigmnnaga.domain.entity.Member;
 import com.jigmnnaga.domain.service.AppointmentGetService;
 import com.jigmnnaga.domain.service.AppointmentParticipantGetService;
 import com.jigmnnaga.domain.service.AppointmentSaveService;
+import com.jigmnnaga.domain.service.ChatMessageSaveService;
 import com.jigmnnaga.domain.service.MemberGetService;
 import com.jigmnnaga.global.config.InviteProperties;
 import com.jigmnnaga.global.util.InviteCodeGenerator;
@@ -32,6 +34,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class AppointmentCreateUseCase {
 
     private static final int MAX_INVITE_CODE_ATTEMPTS = 5;
+    private static final String CHAT_ROOM_OPENED_MESSAGE = "채팅방이 열렸어요";
 
     private final MemberGetService memberGetService;
     private final AppointmentGetService appointmentGetService;
@@ -41,6 +44,8 @@ public class AppointmentCreateUseCase {
     private final InviteProperties inviteProperties;
     private final AppointmentValidator appointmentValidator;
     private final AppointmentParticipantGetService appointmentParticipantGetService;
+    private final ChatMessageSaveService chatMessageSaveService;
+    private final ChatMessageMapper chatMessageMapper;
 
     @Transactional
     public AppointmentCreateResponse createAppointment(Long memberId, AppointmentCreateRequest request) {
@@ -56,6 +61,7 @@ public class AppointmentCreateUseCase {
         Appointment appointment = appointmentMapper.toAppointment(
                 request, sortedDates, host, invitedMembers, generateInviteCode());
         appointmentSaveService.save(appointment);
+        chatMessageSaveService.save(chatMessageMapper.toSystemMessage(appointment, CHAT_ROOM_OPENED_MESSAGE));
 
         String inviteUrl = inviteProperties.inviteUrl(appointment.getInviteCode());
         return appointmentMapper.toCreateResponse(appointment, inviteUrl);

@@ -7,8 +7,11 @@ import com.jigmnnaga.application.mapper.MemberMapper;
 import com.jigmnnaga.domain.entity.Member;
 import com.jigmnnaga.domain.service.MemberGetService;
 import com.jigmnnaga.domain.service.MemberSaveService;
+import com.jigmnnaga.domain.service.RefreshTokenSaveService;
 import com.jigmnnaga.global.client.kakao.KakaoApiClient;
 import com.jigmnnaga.global.jwt.JwtProvider;
+import com.jigmnnaga.global.jwt.TokenHasher;
+import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
@@ -22,17 +25,21 @@ public class KakaoLoginUseCase {
     private final MemberSaveService memberSaveService;
     private final MemberMapper memberMapper;
     private final JwtProvider jwtProvider;
+    private final TokenHasher tokenHasher;
+    private final RefreshTokenSaveService refreshTokenSaveService;
 
     @Transactional
     public LoginResponse login(KakaoLoginRequest request) {
         KakaoUserInfoResponse kakaoUserInfoResponse = kakaoApiClient.getUserInfo(request.kakaoAccessToken());
 
-        boolean isNewMember = memberGetService.findByKakaoId(kakaoUserInfoResponse.id()).isEmpty();
-        Member member = memberGetService.findByKakaoId(kakaoUserInfoResponse.id())
+        Optional<Member> existingMember = memberGetService.findByKakaoId(kakaoUserInfoResponse.id());
+        boolean isNewMember = existingMember.isEmpty();
+        Member member = existingMember
                 .orElseGet(() -> memberSaveService.save(memberMapper.toMember(kakaoUserInfoResponse)));
 
         String accessToken = jwtProvider.createAccessToken(member.getId());
         String refreshToken = jwtProvider.createRefreshToken(member.getId());
+        refreshTokenSaveService.saveOrRotate(member, tokenHasher.hash(refreshToken));
 
         return LoginResponse.builder()
                 .memberId(member.getId())

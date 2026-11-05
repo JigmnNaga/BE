@@ -3,7 +3,9 @@ package com.jigmnnaga.global.exception;
 import com.jigmnnaga.application.exception.BusinessException;
 import com.jigmnnaga.application.exception.ErrorCode;
 import com.jigmnnaga.global.response.CommonResponse;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.ErrorResponse;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -13,6 +15,7 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.HandlerMethodValidationException;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 
+@Slf4j
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
@@ -44,5 +47,18 @@ public class GlobalExceptionHandler {
     public ResponseEntity<CommonResponse<Void>> handleInvalidRequestParameter(Exception e) {
         return ResponseEntity.status(ErrorCode.INVALID_INPUT_VALUE.getHttpStatus())
                 .body(CommonResponse.fail(ErrorCode.INVALID_INPUT_VALUE.getMessage()));
+    }
+
+    @ExceptionHandler(Exception.class)
+    public ResponseEntity<CommonResponse<Void>> handleUnexpectedException(Exception e) {
+        if (e instanceof ErrorResponse errorResponse) {
+            return ResponseEntity.status(errorResponse.getStatusCode())
+                    .headers(errorResponse.getHeaders())
+                    .body(CommonResponse.fail("요청을 처리할 수 없습니다."));
+        }
+        log.error("Unexpected server error", e);
+        ErrorCode errorCode = ErrorCode.INTERNAL_SERVER_ERROR;
+        return ResponseEntity.status(errorCode.getHttpStatus())
+                .body(CommonResponse.fail(errorCode.getMessage()));
     }
 }

@@ -11,6 +11,7 @@ import com.jigmnnaga.domain.entity.ParticipationStatus;
 import com.jigmnnaga.domain.service.AppointmentGetService;
 import com.jigmnnaga.domain.service.AppointmentParticipantGetService;
 import com.jigmnnaga.domain.service.AppointmentParticipantSaveService;
+import com.jigmnnaga.domain.service.ChatMessageGetService;
 import com.jigmnnaga.domain.service.MemberGetService;
 import com.jigmnnaga.global.util.TimeZones;
 import java.time.LocalDateTime;
@@ -26,11 +27,14 @@ public class InviteRespondUseCase {
     private final AppointmentGetService appointmentGetService;
     private final AppointmentParticipantGetService appointmentParticipantGetService;
     private final AppointmentParticipantSaveService appointmentParticipantSaveService;
+    private final ChatMessageGetService chatMessageGetService;
 
     @Transactional
     public InviteAcceptResponse acceptInvite(Long memberId, String inviteCode) {
         AppointmentParticipant participant = getRespondableParticipant(memberId, inviteCode);
         participant.accept();
+        chatMessageGetService.findLatestMessageId(participant.getAppointment().getId())
+                .ifPresent(participant::readUpTo);
         appointmentParticipantSaveService.save(participant);
 
         return InviteAcceptResponse.builder()

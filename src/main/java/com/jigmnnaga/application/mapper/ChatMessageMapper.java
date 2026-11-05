@@ -2,7 +2,9 @@ package com.jigmnnaga.application.mapper;
 
 import com.jigmnnaga.application.dto.response.ChatMessagePageResponse;
 import com.jigmnnaga.application.dto.response.ChatMessageResponse;
+import com.jigmnnaga.application.dto.response.ChatReadResponse;
 import com.jigmnnaga.domain.entity.Appointment;
+import com.jigmnnaga.domain.entity.AppointmentParticipant;
 import com.jigmnnaga.domain.entity.ChatMessage;
 import com.jigmnnaga.domain.entity.ChatMessageType;
 import com.jigmnnaga.domain.entity.Member;
@@ -30,7 +32,7 @@ public class ChatMessageMapper {
                 .build();
     }
 
-    public ChatMessageResponse toResponse(ChatMessage chatMessage) {
+    public ChatMessageResponse toResponse(ChatMessage chatMessage, Integer unreadCount) {
         Member sender = chatMessage.getSender();
         return ChatMessageResponse.builder()
                 .messageId(chatMessage.getId())
@@ -41,20 +43,40 @@ public class ChatMessageMapper {
                 .senderProfileImageUrl(sender == null ? null : sender.getProfileImageUrl())
                 .content(chatMessage.getContent())
                 .sentAt(chatMessage.getCreatedAt())
+                .unreadCount(chatMessage.getType() == ChatMessageType.SYSTEM ? null : unreadCount)
                 .build();
     }
 
-    public ChatMessagePageResponse toPageResponse(List<ChatMessage> newestFirst, int size) {
+    public ChatMessagePageResponse toPageResponse(List<ChatMessage> newestFirst, int size,
+                                                  List<AppointmentParticipant> participants,
+                                                  AppointmentParticipant me) {
         boolean hasNext = newestFirst.size() > size;
         List<ChatMessage> page = newestFirst.subList(0, Math.min(size, newestFirst.size()));
 
         return ChatMessagePageResponse.builder()
                 .messages(page.stream()
                         .sorted(Comparator.comparing(ChatMessage::getId))
-                        .map(this::toResponse)
+                        .map(chatMessage -> toResponse(chatMessage, countUnreadMembers(chatMessage, participants)))
                         .toList())
+                .myLastReadMessageId(me.getLastReadMessageId())
                 .nextCursor(hasNext ? page.getLast().getId() : null)
                 .hasNext(hasNext)
                 .build();
+    }
+
+    public ChatReadResponse toReadResponse(Long memberId, Long previousLastReadMessageId, Long lastReadMessageId) {
+        return ChatReadResponse.builder()
+                .memberId(memberId)
+                .previousLastReadMessageId(previousLastReadMessageId)
+                .lastReadMessageId(lastReadMessageId)
+                .build();
+    }
+
+    private int countUnreadMembers(ChatMessage chatMessage, List<AppointmentParticipant> participants) {
+        Member sender = chatMessage.getSender();
+        return (int) participants.stream()
+                .filter(participant -> sender == null || !participant.getMember().getId().equals(sender.getId()))
+                .filter(participant -> !participant.hasRead(chatMessage.getId()))
+                .count();
     }
 }

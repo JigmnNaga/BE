@@ -13,6 +13,7 @@ public record ChatMessageResponse(
         String senderNickname,
         String senderProfileImageUrl,
         String content,
-        LocalDateTime sentAt
+        LocalDateTime sentAt,
+        Integer unreadCount
 ) {
 }

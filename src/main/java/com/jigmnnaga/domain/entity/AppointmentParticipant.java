@@ -68,6 +68,8 @@ public class AppointmentParticipant extends BaseEntity {
     @OneToMany(mappedBy = "participant", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<ParticipantAvailability> availabilities = new ArrayList<>();
 
+    private Long lastReadMessageId;
+
     @Builder
     private AppointmentParticipant(Member member, ParticipantRole role, ParticipationStatus status) {
         this.member = member;
@@ -91,6 +93,18 @@ public class AppointmentParticipant extends BaseEntity {
             availability.assignParticipant(this);
         });
         this.preferredLocation = preferredLocation;
+    }
+
+    public boolean readUpTo(Long messageId) {
+        if (messageId == null || (lastReadMessageId != null && lastReadMessageId >= messageId)) {
+            return false;
+        }
+        this.lastReadMessageId = messageId;
+        return true;
+    }
+
+    public boolean hasRead(Long messageId) {
+        return lastReadMessageId != null && lastReadMessageId >= messageId;
     }
 
     public void kick() {

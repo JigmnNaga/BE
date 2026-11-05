@@ -34,6 +34,9 @@ public class ChatMessageSendUseCase {
 
         ChatMessage chatMessage = chatMessageSaveService.save(
                 chatMessageMapper.toTextMessage(appointment, participant.getMember(), request.content().strip()));
-        return chatMessageMapper.toResponse(chatMessage);
+        participant.readUpTo(chatMessage.getId());
+
+        int unreadCount = appointment.getAcceptedMemberCount() - 1;
+        return chatMessageMapper.toResponse(chatMessage, unreadCount);
     }
 }

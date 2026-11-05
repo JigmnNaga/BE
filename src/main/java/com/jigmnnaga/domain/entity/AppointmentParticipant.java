@@ -93,6 +93,25 @@ public class AppointmentParticipant extends BaseEntity {
         this.preferredLocation = preferredLocation;
     }
 
+    public void kick() {
+        this.status = ParticipationStatus.KICKED;
+        availabilities.clear();
+        this.preferredLocation = null;
+        resetAttendance();
+    }
+
+    public void promoteToHost() {
+        this.role = ParticipantRole.HOST;
+    }
+
+    public void demoteToMember() {
+        this.role = ParticipantRole.MEMBER;
+    }
+
+    public boolean isKicked() {
+        return status == ParticipationStatus.KICKED;
+    }
+
     public void removeAvailabilitiesNotIn(Set<LocalDate> candidateDates) {
         availabilities.removeIf(availability -> !candidateDates.contains(availability.getAvailableDate()));
     }

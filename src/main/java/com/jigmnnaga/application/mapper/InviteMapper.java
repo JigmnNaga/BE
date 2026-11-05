@@ -27,15 +27,19 @@ public class InviteMapper {
                 .findFirst()
                 .orElse(ParticipationStatus.PENDING);
 
-        int respondedCount = (int) participants.stream()
+        List<AppointmentParticipant> visibleParticipants = participants.stream()
+                .filter(participant -> !participant.isKicked())
+                .toList();
+
+        int respondedCount = (int) visibleParticipants.stream()
                 .filter(participant -> !participant.isHost() && participant.hasResponded())
                 .count();
 
-        int joinedCount = (int) participants.stream()
+        int joinedCount = (int) visibleParticipants.stream()
                 .filter(participant -> participant.getStatus() == ParticipationStatus.ACCEPTED)
                 .count();
 
-        List<ParticipantResponse> participantResponses = participants.stream()
+        List<ParticipantResponse> participantResponses = visibleParticipants.stream()
                 .sorted(Comparator.comparing((AppointmentParticipant participant) -> !participant.isHost()))
                 .map(this::toParticipantResponse)
                 .toList();

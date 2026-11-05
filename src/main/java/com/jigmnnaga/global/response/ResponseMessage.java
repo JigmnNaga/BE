@@ -24,7 +24,10 @@ public enum ResponseMessage {
     CALENDAR_GET_SUCCESS("월별 캘린더를 조회했습니다."),
     APPOINTMENT_UPDATE_SUCCESS("약속 정보를 변경했습니다."),
     APPOINTMENT_CANCEL_SUCCESS("약속을 취소했습니다."),
-    APPOINTMENT_DELETE_SUCCESS("약속방을 삭제했습니다.");
+    APPOINTMENT_DELETE_SUCCESS("약속방을 삭제했습니다."),
+    APPOINTMENT_LEAVE_SUCCESS("약속방을 나갔습니다."),
+    PARTICIPANT_KICK_SUCCESS("멤버를 내보냈습니다."),
+    HOST_DELEGATE_SUCCESS("방장을 위임했습니다.");
 
     private final String message;
 }

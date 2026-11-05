@@ -62,6 +62,9 @@ public class InviteRespondUseCase {
                 .findByAppointmentAndMember(appointment, member)
                 .orElseGet(() -> createPendingParticipant(appointment, member));
 
+        if (participant.isKicked()) {
+            throw new BusinessException(ErrorCode.KICKED_MEMBER_CANNOT_REJOIN);
+        }
         if (participant.isHost()) {
             throw new BusinessException(ErrorCode.HOST_CANNOT_RESPOND);
         }

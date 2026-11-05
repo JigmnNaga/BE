@@ -88,6 +88,16 @@ public class AppointmentEventFactory {
                 "'" + appointment.getTitle() + "' " + confirmedSummary(appointment));
     }
 
+    public NotificationEvent rescheduleRequested(Appointment appointment, String requesterNickname, Long hostId) {
+        return new NotificationEvent(List.of(hostId), appointment.getId(), NotificationType.RESCHEDULE_REQUESTED,
+                "일정 조율 요청이 왔어요",
+                requesterNickname + "님이 '" + appointment.getTitle() + "' 약속의 일정 조율을 요청했어요.");
+    }
+
+    public String rescheduleRequestedChatMessage(String requesterNickname) {
+        return requesterNickname + "님이 일정 조율을 요청했어요";
+    }
+
     public String responseDeadlineClosedChatMessage() {
         return "응답 기한이 마감됐어요. 방장은 일정을 확정해 주세요.";
     }

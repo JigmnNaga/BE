@@ -80,7 +80,7 @@ public class AppointmentController {
         return CommonResponse.success(ResponseMessage.CONFIRM_DATE_TIME_SUCCESS);
     }
 
-    @Operation(summary = "약속 장소 확정", description = "방장이 후보 장소 중 하나를 확정하고 세부 위치(상호)를 함께 정합니다. 세부 위치를 나중에 정하면 detailPlace를 생략합니다. 다시 호출하면 변경됩니다.")
+    @Operation(summary = "약속 장소 확정", description = "방장이 후보 장소 중 하나를 확정하고 세부 위치(상호)를 함께 정합니다. 세부 위치를 나중에 정하면 detailPlace를 생략하며, 이 경우 세부 위치가 정해질 때까지 확정 전 상태입니다. 다시 호출하면 변경됩니다.")
     @PutMapping("/{appointmentId}/confirmation/location")
     public CommonResponse<Void> confirmLocation(
             @Parameter(hidden = true) @LoginMember Long memberId,

@@ -228,7 +228,7 @@ public class Appointment extends BaseEntity {
     }
 
     public boolean isConfirmed() {
-        return confirmedDate != null && confirmedLocation != null;
+        return confirmedDate != null && confirmedLocation != null && detailPlaceName != null;
     }
 
     public boolean isUpcoming(LocalDateTime now) {

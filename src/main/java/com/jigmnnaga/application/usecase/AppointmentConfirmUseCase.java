@@ -62,11 +62,19 @@ public class AppointmentConfirmUseCase {
     }
 
     private void publishConfirmationEvents(Long hostId, Appointment appointment, ConfirmationSnapshot before) {
-        if (!appointment.isConfirmed() || before.equals(ConfirmationSnapshot.of(appointment))) {
+        if (before.equals(ConfirmationSnapshot.of(appointment))) {
             return;
         }
 
         List<Long> recipientIds = appointment.getAcceptedMemberIdsExcept(hostId);
+        if (!appointment.isConfirmed()) {
+            if (before.confirmed()) {
+                appointmentEventPublisher.publishNotification(appointmentEventFactory.infoChanged(
+                        appointment, "확정된 장소가 변경돼 세부 장소를 다시 정하는 중이에요.", recipientIds));
+            }
+            return;
+        }
+
         if (before.confirmed()) {
             appointmentEventPublisher.sendSystemMessage(appointment,
                     appointmentEventFactory.confirmedChangedChatMessage(appointment));

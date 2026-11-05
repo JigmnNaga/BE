@@ -15,7 +15,6 @@ public enum ErrorCode {
     KAKAO_ACCOUNT_INFO_MISSING(HttpStatus.BAD_REQUEST, "카카오 동의 항목(닉네임)이 누락되어 로그인할 수 없습니다."),
     MEMBER_NOT_FOUND(HttpStatus.NOT_FOUND, "존재하지 않는 회원입니다."),
     WITHDRAWN_MEMBER(HttpStatus.UNAUTHORIZED, "탈퇴한 회원입니다."),
-    WITHDRAWAL_BLOCKED_BY_HOSTED_APPOINTMENT(HttpStatus.BAD_REQUEST, "다른 멤버가 있는 다가오는 약속의 방장은 탈퇴할 수 없습니다. 방장을 위임하거나 약속방을 정리해주세요."),
 
     UNAUTHORIZED(HttpStatus.UNAUTHORIZED, "인증이 필요합니다."),
     INVALID_ACCESS_TOKEN(HttpStatus.UNAUTHORIZED, "유효하지 않은 액세스 토큰입니다."),

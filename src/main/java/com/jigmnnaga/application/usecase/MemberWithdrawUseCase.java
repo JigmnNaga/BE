@@ -22,6 +22,8 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 public class MemberWithdrawUseCase {
 
+    private static final int MAX_MEMBER_COUNT_TO_DELETE_ON_HOST_WITHDRAWAL = 2;
+
     private final MemberGetService memberGetService;
     private final AppointmentParticipantGetService appointmentParticipantGetService;
     private final AppointmentDeleteService appointmentDeleteService;
@@ -36,23 +38,11 @@ public class MemberWithdrawUseCase {
         List<AppointmentParticipant> participations =
                 appointmentParticipantGetService.findAllWithAppointmentByMemberId(memberId);
 
-        validateNoHostedActiveAppointmentWithOthers(participations, now);
         kakaoApiClient.unlink(member.getKakaoId());
 
         participations.forEach(participation -> cleanUpParticipation(participation, now));
         refreshTokenDeleteService.deleteByMemberId(memberId);
         member.withdraw(now);
-    }
-
-    private void validateNoHostedActiveAppointmentWithOthers(List<AppointmentParticipant> participations,
-                                                              LocalDateTime now) {
-        boolean hasHostedActiveAppointmentWithOthers = participations.stream()
-                .filter(AppointmentParticipant::isHost)
-                .map(AppointmentParticipant::getAppointment)
-                .anyMatch(appointment -> isActive(appointment, now) && appointment.getAcceptedMemberCount() > 1);
-        if (hasHostedActiveAppointmentWithOthers) {
-            throw new BusinessException(ErrorCode.WITHDRAWAL_BLOCKED_BY_HOSTED_APPOINTMENT);
-        }
     }
 
     private void cleanUpParticipation(AppointmentParticipant participation, LocalDateTime now) {
@@ -66,11 +56,22 @@ public class MemberWithdrawUseCase {
             return;
         }
         if (participation.isHost()) {
+            leaveHostedAppointment(appointment, participation);
+            return;
+        }
+        appointment.removeParticipant(participation);
+    }
+
+    private void leaveHostedAppointment(Appointment appointment, AppointmentParticipant host) {
+        if (appointment.getAcceptedMemberCount() <= MAX_MEMBER_COUNT_TO_DELETE_ON_HOST_WITHDRAWAL) {
             appointment.clearReferencesForDelete();
             appointmentDeleteService.delete(appointment);
             return;
         }
-        appointment.removeParticipant(participation);
+
+        AppointmentParticipant newHost = appointment.findEarliestAcceptedParticipantExcept(host).orElseThrow();
+        appointment.delegateHost(host, newHost);
+        appointment.removeParticipant(host);
     }
 
     private boolean isActive(Appointment appointment, LocalDateTime now) {

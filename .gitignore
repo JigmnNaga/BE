@@ -38,3 +38,6 @@ out/
 
 ### Environment Variables
 .env
+
+### Local AI Settings ###
+.claude/

@@ -8,6 +8,7 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
+import java.time.LocalDateTime;
 import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.Getter;
@@ -18,6 +19,8 @@ import lombok.NoArgsConstructor;
 @Table(name = "member")
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class Member extends BaseEntity {
+
+    private static final String WITHDRAWN_NICKNAME = "탈퇴한 사용자";
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -37,6 +40,8 @@ public class Member extends BaseEntity {
     @Column(nullable = false)
     private Role role;
 
+    private LocalDateTime withdrawnAt;
+
     @Builder
     private Member(Long kakaoId, String nickname, String profileImageUrl, String email, Role role) {
         this.kakaoId = kakaoId;
@@ -44,5 +49,17 @@ public class Member extends BaseEntity {
         this.profileImageUrl = profileImageUrl;
         this.email = email;
         this.role = role;
+    }
+
+    public void withdraw(LocalDateTime withdrawnAt) {
+        this.kakaoId = -id;
+        this.nickname = WITHDRAWN_NICKNAME;
+        this.profileImageUrl = null;
+        this.email = null;
+        this.withdrawnAt = withdrawnAt;
+    }
+
+    public boolean isWithdrawn() {
+        return withdrawnAt != null;
     }
 }

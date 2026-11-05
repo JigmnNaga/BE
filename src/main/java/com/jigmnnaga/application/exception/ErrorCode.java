@@ -11,8 +11,11 @@ public enum ErrorCode {
     KAKAO_TOKEN_INVALID(HttpStatus.UNAUTHORIZED, "유효하지 않은 카카오 액세스 토큰입니다."),
     PLACE_SEARCH_FAILED(HttpStatus.BAD_GATEWAY, "장소 검색에 실패했습니다. 잠시 후 다시 시도해주세요."),
     PLACE_SEARCH_UNAVAILABLE(HttpStatus.SERVICE_UNAVAILABLE, "장소 검색 기능이 설정되지 않았습니다."),
+    KAKAO_UNLINK_FAILED(HttpStatus.BAD_GATEWAY, "카카오 계정 연결 끊기에 실패했습니다. 잠시 후 다시 시도해주세요."),
     KAKAO_ACCOUNT_INFO_MISSING(HttpStatus.BAD_REQUEST, "카카오 동의 항목(닉네임)이 누락되어 로그인할 수 없습니다."),
     MEMBER_NOT_FOUND(HttpStatus.NOT_FOUND, "존재하지 않는 회원입니다."),
+    WITHDRAWN_MEMBER(HttpStatus.UNAUTHORIZED, "탈퇴한 회원입니다."),
+    WITHDRAWAL_BLOCKED_BY_HOSTED_APPOINTMENT(HttpStatus.BAD_REQUEST, "다른 멤버가 있는 다가오는 약속의 방장은 탈퇴할 수 없습니다. 방장을 위임하거나 약속방을 정리해주세요."),
 
     UNAUTHORIZED(HttpStatus.UNAUTHORIZED, "인증이 필요합니다."),
     INVALID_ACCESS_TOKEN(HttpStatus.UNAUTHORIZED, "유효하지 않은 액세스 토큰입니다."),

@@ -17,6 +17,10 @@ public interface AppointmentParticipantRepository extends JpaRepository<Appointm
 
     Optional<AppointmentParticipant> findByAppointmentIdAndMemberId(Long appointmentId, Long memberId);
 
+    @Query("select p.member.id from AppointmentParticipant p "
+            + "where p.appointment.id = :appointmentId and p.notificationEnabled = false")
+    List<Long> findAllMutedMemberIdsByAppointmentId(@Param("appointmentId") Long appointmentId);
+
     @Query("select p from AppointmentParticipant p join fetch p.member where p.appointment = :appointment order by p.id")
     List<AppointmentParticipant> findAllWithMemberByAppointment(@Param("appointment") Appointment appointment);
 

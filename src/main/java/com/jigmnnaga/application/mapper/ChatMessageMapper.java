@@ -90,7 +90,7 @@ public class ChatMessageMapper {
         if (content.length() > MAX_PUSH_BODY_LENGTH) {
             content = content.substring(0, MAX_PUSH_BODY_LENGTH) + "…";
         }
-        return new PushEvent(recipientIds, chatMessage.getAppointment().getTitle(),
+        return new PushEvent(recipientIds, chatMessage.getAppointment().getId(), chatMessage.getAppointment().getTitle(),
                 chatMessage.getSender().getNickname() + ": " + content,
                 Map.of("type", CHAT_PUSH_TYPE,
                         "appointmentId", String.valueOf(chatMessage.getAppointment().getId()),

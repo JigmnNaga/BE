@@ -120,6 +120,7 @@ public class AppointmentMapper {
                 .detailPlace(toDetailPlaceResponse(appointment))
                 .myRole(me.getRole())
                 .myAttendanceStatus(me.getAttendanceStatus())
+                .myNotificationEnabled(me.isNotificationEnabled())
                 .joinedCount(participants.size())
                 .scheduleSubmittedCount(scheduleSubmittedCount)
                 .members(members)

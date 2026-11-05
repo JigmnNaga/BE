@@ -55,6 +55,7 @@ public class NotificationMapper {
         if (event.appointmentId() != null) {
             data.put("appointmentId", String.valueOf(event.appointmentId()));
         }
-        return new PushEvent(recipients.stream().map(Member::getId).toList(), event.title(), event.body(), data);
+        return new PushEvent(recipients.stream().map(Member::getId).toList(), event.appointmentId(),
+                event.title(), event.body(), data);
     }
 }

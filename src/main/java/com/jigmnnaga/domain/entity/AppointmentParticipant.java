@@ -70,6 +70,10 @@ public class AppointmentParticipant extends BaseEntity {
 
     private Long lastReadMessageId;
 
+    @ColumnDefault("true")
+    @Column(nullable = false)
+    private boolean notificationEnabled = true;
+
     @Builder
     private AppointmentParticipant(Member member, ParticipantRole role, ParticipationStatus status) {
         this.member = member;
@@ -93,6 +97,10 @@ public class AppointmentParticipant extends BaseEntity {
             availability.assignParticipant(this);
         });
         this.preferredLocation = preferredLocation;
+    }
+
+    public void updateNotificationEnabled(boolean notificationEnabled) {
+        this.notificationEnabled = notificationEnabled;
     }
 
     public boolean readUpTo(Long messageId) {

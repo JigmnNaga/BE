@@ -2,7 +2,9 @@ package com.jigmnnaga.presentation;
 
 import com.jigmnnaga.application.dto.request.AppointmentLeaveRequest;
 import com.jigmnnaga.application.dto.request.HostDelegateRequest;
+import com.jigmnnaga.application.dto.request.NotificationSettingRequest;
 import com.jigmnnaga.application.dto.response.ReminderSendResponse;
+import com.jigmnnaga.application.usecase.NotificationSettingUseCase;
 import com.jigmnnaga.application.usecase.ParticipantManageUseCase;
 import com.jigmnnaga.application.usecase.ReminderSendUseCase;
 import com.jigmnnaga.global.auth.LoginMember;
@@ -28,6 +30,7 @@ public class ParticipantController {
 
     private final ParticipantManageUseCase participantManageUseCase;
     private final ReminderSendUseCase reminderSendUseCase;
+    private final NotificationSettingUseCase notificationSettingUseCase;
 
     @Operation(summary = "약속방 나가기", description = "약속방을 나갑니다. 내 일정 선택과 참석 응답은 삭제되며, 응답 기한 내에는 초대 링크로 다시 참여할 수 있습니다. 방장은 newHostMemberId로 새 방장을 지정해야 하며, 혼자 남은 경우 나갈 수 없습니다.")
     @PostMapping("/leave")
@@ -70,5 +73,16 @@ public class ParticipantController {
     ) {
         ReminderSendResponse response = reminderSendUseCase.sendReminder(memberId, appointmentId);
         return CommonResponse.success(ResponseMessage.REMINDER_SEND_SUCCESS, response);
+    }
+
+    @Operation(summary = "약속방 알림 설정", description = "이 약속방의 알림을 켜거나 끕니다. 끄면 이 약속방의 푸시 알림(알림·채팅)을 보내지 않으며, 알림함에는 그대로 저장됩니다.")
+    @PatchMapping("/notification-setting")
+    public CommonResponse<Void> updateNotificationSetting(
+            @Parameter(hidden = true) @LoginMember Long memberId,
+            @PathVariable Long appointmentId,
+            @RequestBody @Valid NotificationSettingRequest request
+    ) {
+        notificationSettingUseCase.updateNotificationSetting(memberId, appointmentId, request);
+        return CommonResponse.success(ResponseMessage.NOTIFICATION_SETTING_UPDATE_SUCCESS);
     }
 }

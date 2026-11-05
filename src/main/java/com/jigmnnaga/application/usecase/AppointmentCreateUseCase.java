@@ -2,6 +2,8 @@ package com.jigmnnaga.application.usecase;
 
 import com.jigmnnaga.application.dto.request.AppointmentCreateRequest;
 import com.jigmnnaga.application.dto.response.AppointmentCreateResponse;
+import com.jigmnnaga.application.event.AppointmentEventFactory;
+import com.jigmnnaga.application.event.AppointmentEventPublisher;
 import com.jigmnnaga.application.exception.BusinessException;
 import com.jigmnnaga.application.exception.ErrorCode;
 import com.jigmnnaga.application.mapper.AppointmentMapper;
@@ -46,6 +48,8 @@ public class AppointmentCreateUseCase {
     private final AppointmentParticipantGetService appointmentParticipantGetService;
     private final ChatMessageSaveService chatMessageSaveService;
     private final ChatMessageMapper chatMessageMapper;
+    private final AppointmentEventPublisher appointmentEventPublisher;
+    private final AppointmentEventFactory appointmentEventFactory;
 
     @Transactional
     public AppointmentCreateResponse createAppointment(Long memberId, AppointmentCreateRequest request) {
@@ -62,6 +66,8 @@ public class AppointmentCreateUseCase {
                 request, sortedDates, host, invitedMembers, generateInviteCode());
         appointmentSaveService.save(appointment);
         chatMessageSaveService.save(chatMessageMapper.toSystemMessage(appointment, CHAT_ROOM_OPENED_MESSAGE));
+        appointmentEventPublisher.publishNotification(appointmentEventFactory.invited(
+                appointment, host.getNickname(), invitedMembers.stream().map(Member::getId).toList()));
 
         String inviteUrl = inviteProperties.inviteUrl(appointment.getInviteCode());
         return appointmentMapper.toCreateResponse(appointment, inviteUrl);

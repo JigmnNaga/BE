@@ -2,6 +2,8 @@ package com.jigmnnaga.application.usecase;
 
 import com.jigmnnaga.application.dto.request.AppointmentLeaveRequest;
 import com.jigmnnaga.application.dto.request.HostDelegateRequest;
+import com.jigmnnaga.application.event.AppointmentEventFactory;
+import com.jigmnnaga.application.event.AppointmentEventPublisher;
 import com.jigmnnaga.application.exception.BusinessException;
 import com.jigmnnaga.application.exception.ErrorCode;
 import com.jigmnnaga.application.validator.AppointmentAccessValidator;
@@ -18,6 +20,8 @@ public class ParticipantManageUseCase {
 
     private final AppointmentParticipantGetService appointmentParticipantGetService;
     private final AppointmentAccessValidator appointmentAccessValidator;
+    private final AppointmentEventPublisher appointmentEventPublisher;
+    private final AppointmentEventFactory appointmentEventFactory;
 
     @Transactional
     public void leaveAppointment(Long memberId, Long appointmentId, AppointmentLeaveRequest request) {
@@ -35,6 +39,8 @@ public class ParticipantManageUseCase {
             }
             AppointmentParticipant newHost = getOtherAcceptedParticipant(appointment, memberId, request.newHostMemberId());
             appointment.delegateHost(me, newHost);
+            appointmentEventPublisher.publishNotification(
+                    appointmentEventFactory.hostDelegated(appointment, newHost.getMember().getId()));
         }
 
         appointment.removeParticipant(me);
@@ -45,6 +51,7 @@ public class ParticipantManageUseCase {
         Appointment appointment = getManageableAppointment(memberId, appointmentId);
         AppointmentParticipant target = getOtherAcceptedParticipant(appointment, memberId, targetMemberId);
         target.kick();
+        appointmentEventPublisher.publishNotification(appointmentEventFactory.kicked(appointment, targetMemberId));
     }
 
     @Transactional
@@ -53,6 +60,8 @@ public class ParticipantManageUseCase {
         AppointmentParticipant currentHost = appointment.findAcceptedParticipant(memberId).orElseThrow();
         AppointmentParticipant newHost = getOtherAcceptedParticipant(appointment, memberId, request.memberId());
         appointment.delegateHost(currentHost, newHost);
+        appointmentEventPublisher.publishNotification(
+                appointmentEventFactory.hostDelegated(appointment, newHost.getMember().getId()));
     }
 
     private Appointment getManageableAppointment(Long memberId, Long appointmentId) {

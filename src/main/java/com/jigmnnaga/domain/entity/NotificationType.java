@@ -1,0 +1,12 @@
+package com.jigmnnaga.domain.entity;
+
+public enum NotificationType {
+    INVITED,
+    SCHEDULE_INPUT_REQUESTED,
+    APPOINTMENT_CONFIRMED,
+    APPOINTMENT_CHANGED,
+    APPOINTMENT_CANCELED,
+    ATTENDANCE_REQUESTED,
+    HOST_DELEGATED,
+    KICKED
+}

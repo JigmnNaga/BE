@@ -19,6 +19,7 @@ import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import lombok.AccessLevel;
@@ -99,6 +100,11 @@ public class Appointment extends BaseEntity {
 
     public void confirmLocation(AppointmentCandidateLocation confirmedLocation, String detailPlaceName,
                                 String detailPlaceAddress, Double detailPlaceLatitude, Double detailPlaceLongitude) {
+        boolean isChanged = this.confirmedLocation != null
+                && (!this.confirmedLocation.equals(confirmedLocation) || !Objects.equals(this.detailPlaceName, detailPlaceName));
+        if (isChanged) {
+            participants.forEach(AppointmentParticipant::resetAttendance);
+        }
         this.confirmedLocation = confirmedLocation;
         this.detailPlaceName = detailPlaceName;
         this.detailPlaceAddress = detailPlaceAddress;
@@ -142,6 +148,14 @@ public class Appointment extends BaseEntity {
 
     public void updateResponseDeadline(LocalDateTime responseDeadline) {
         this.responseDeadline = responseDeadline;
+    }
+
+    public List<Long> getAcceptedMemberIdsExcept(Long excludedMemberId) {
+        return participants.stream()
+                .filter(participant -> participant.getStatus() == ParticipationStatus.ACCEPTED)
+                .map(participant -> participant.getMember().getId())
+                .filter(memberId -> !memberId.equals(excludedMemberId))
+                .toList();
     }
 
     public Optional<AppointmentParticipant> findAcceptedParticipant(Long memberId) {

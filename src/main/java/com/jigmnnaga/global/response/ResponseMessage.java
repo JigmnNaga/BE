@@ -10,6 +10,7 @@ public enum ResponseMessage {
     LOGIN_SUCCESS("로그인에 성공했습니다."),
     TOKEN_REISSUE_SUCCESS("토큰을 재발급했습니다."),
     LOGOUT_SUCCESS("로그아웃했습니다."),
+    PLACE_SEARCH_SUCCESS("장소를 검색했습니다."),
     APPOINTMENT_CREATE_SUCCESS("약속방이 생성되었습니다."),
     INVITE_GET_SUCCESS("초대 정보를 조회했습니다."),
     INVITE_ACCEPT_SUCCESS("약속을 수락했습니다."),

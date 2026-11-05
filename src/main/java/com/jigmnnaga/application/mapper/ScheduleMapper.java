@@ -42,8 +42,13 @@ public class ScheduleMapper {
                 .map(this::toMemberScheduleResponse)
                 .toList();
 
+        int topVoteCount = appointment.getCandidateLocations().stream()
+                .mapToInt(location -> getVoters(location, participants).size())
+                .max()
+                .orElse(0);
+
         List<ScheduleStatusResponse.LocationVoteResponse> locationVotes = appointment.getCandidateLocations().stream()
-                .map(location -> toLocationVoteResponse(location, participants))
+                .map(location -> toLocationVoteResponse(location, participants, topVoteCount))
                 .toList();
 
         int submittedCount = (int) participants.stream()
@@ -71,17 +76,32 @@ public class ScheduleMapper {
     }
 
     private ScheduleStatusResponse.LocationVoteResponse toLocationVoteResponse(AppointmentCandidateLocation location,
-                                                                               List<AppointmentParticipant> participants) {
-        int voteCount = (int) participants.stream()
-                .filter(participant -> Objects.equals(getPreferredLocationId(participant), location.getId()))
-                .count();
+                                                                               List<AppointmentParticipant> participants,
+                                                                               int topVoteCount) {
+        List<Member> voters = getVoters(location, participants);
 
         return ScheduleStatusResponse.LocationVoteResponse.builder()
                 .locationId(location.getId())
                 .placeName(location.getPlaceName())
                 .address(location.getAddress())
-                .voteCount(voteCount)
+                .lineNames(location.getLineNames())
+                .voteCount(voters.size())
+                .topVoted(topVoteCount > 0 && voters.size() == topVoteCount)
+                .voters(voters.stream()
+                        .map(voter -> ScheduleStatusResponse.VoterResponse.builder()
+                                .memberId(voter.getId())
+                                .nickname(voter.getNickname())
+                                .profileImageUrl(voter.getProfileImageUrl())
+                                .build())
+                        .toList())
                 .build();
+    }
+
+    private List<Member> getVoters(AppointmentCandidateLocation location, List<AppointmentParticipant> participants) {
+        return participants.stream()
+                .filter(participant -> Objects.equals(getPreferredLocationId(participant), location.getId()))
+                .map(AppointmentParticipant::getMember)
+                .toList();
     }
 
     private List<AvailabilityResponse> toAvailabilityResponses(AppointmentParticipant participant) {

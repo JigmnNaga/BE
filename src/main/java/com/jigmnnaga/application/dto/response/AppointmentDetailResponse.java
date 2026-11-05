@@ -37,6 +37,7 @@ public record AppointmentDetailResponse(
             Long locationId,
             String placeName,
             String address,
+            String lineNames,
             Double latitude,
             Double longitude
     ) {

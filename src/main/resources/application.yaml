@@ -33,3 +33,7 @@ invite:
 kakao:
   rest-api-key: ${KAKAO_REST_API_KEY:}
   admin-key: ${KAKAO_ADMIN_KEY:}
+
+firebase:
+  credentials-base64: ${FIREBASE_CREDENTIALS_BASE64:}
+  credentials-path: ${FIREBASE_CREDENTIALS_PATH:}

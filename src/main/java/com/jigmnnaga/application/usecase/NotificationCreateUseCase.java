@@ -8,6 +8,7 @@ import com.jigmnnaga.domain.service.MemberGetService;
 import com.jigmnnaga.domain.service.NotificationSaveService;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Propagation;
@@ -25,6 +26,7 @@ public class NotificationCreateUseCase {
     private final NotificationSaveService notificationSaveService;
     private final NotificationMapper notificationMapper;
     private final SimpMessagingTemplate messagingTemplate;
+    private final ApplicationEventPublisher applicationEventPublisher;
 
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     @Transactional(propagation = Propagation.REQUIRES_NEW)
@@ -42,5 +44,6 @@ public class NotificationCreateUseCase {
         notifications.forEach(notification -> messagingTemplate.convertAndSendToUser(
                 String.valueOf(notification.getMember().getId()), NOTIFICATION_QUEUE,
                 notificationMapper.toResponse(notification)));
+        applicationEventPublisher.publishEvent(notificationMapper.toPushEvent(event, recipients));
     }
 }

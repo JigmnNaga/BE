@@ -127,6 +127,9 @@ dependencies {
 	implementation 'org.springframework.boot:spring-boot-starter-flyway'
 	runtimeOnly 'org.flywaydb:flyway-mysql'
 
+	// 푸시 알림 (FCM)
+	implementation 'com.google.firebase:firebase-admin:9.9.0'
+
 	// Lombok
 	compileOnly 'org.projectlombok:lombok'
 	annotationProcessor 'org.projectlombok:lombok'

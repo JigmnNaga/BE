@@ -9,7 +9,9 @@ import com.jigmnnaga.domain.entity.AppointmentCandidateDate;
 import com.jigmnnaga.domain.entity.AppointmentCandidateLocation;
 import com.jigmnnaga.domain.entity.AppointmentParticipant;
 import com.jigmnnaga.domain.service.AppointmentParticipantGetService;
+import com.jigmnnaga.global.util.TimeZones;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -33,6 +35,9 @@ public class ScheduleSubmitUseCase {
         Appointment appointment = participant.getAppointment();
         if (appointment.isCanceled()) {
             throw new BusinessException(ErrorCode.APPOINTMENT_CANCELED);
+        }
+        if (appointment.isInviteExpired(LocalDateTime.now(TimeZones.SEOUL))) {
+            throw new BusinessException(ErrorCode.SCHEDULE_RESPONSE_DEADLINE_PASSED);
         }
 
         validateAvailabilities(appointment, request.availabilities());

@@ -29,3 +29,6 @@ jwt:
 
 invite:
   base-url: ${INVITE_BASE_URL:https://jigeumnaga.app/i/}
+
+kakao:
+  rest-api-key: ${KAKAO_REST_API_KEY:}

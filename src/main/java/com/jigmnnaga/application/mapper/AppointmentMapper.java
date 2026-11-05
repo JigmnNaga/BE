@@ -55,6 +55,7 @@ public class AppointmentMapper {
                 .map(location -> AppointmentCandidateLocation.builder()
                         .placeName(location.placeName())
                         .address(location.address())
+                        .lineNames(location.lineNames())
                         .latitude(location.latitude())
                         .longitude(location.longitude())
                         .build())
@@ -131,6 +132,7 @@ public class AppointmentMapper {
                 .locationId(location.getId())
                 .placeName(location.getPlaceName())
                 .address(location.getAddress())
+                .lineNames(location.getLineNames())
                 .latitude(location.getLatitude())
                 .longitude(location.getLongitude())
                 .build();

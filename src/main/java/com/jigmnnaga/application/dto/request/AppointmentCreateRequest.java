@@ -47,6 +47,9 @@ public record AppointmentCreateRequest(
             @Schema(description = "주소", example = "서울특별시 강남구 역삼동")
             String address,
 
+            @Schema(description = "지하철 노선 (장소 검색 STATION 결과의 lineNames)", example = "2호선, 신분당선")
+            @Size(max = 255) String lineNames,
+
             @Schema(description = "위도", example = "37.497942")
             @NotNull Double latitude,
 

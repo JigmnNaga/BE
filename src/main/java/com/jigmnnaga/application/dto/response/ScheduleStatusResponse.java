@@ -27,7 +27,18 @@ public record ScheduleStatusResponse(
             Long locationId,
             String placeName,
             String address,
-            int voteCount
+            String lineNames,
+            int voteCount,
+            boolean topVoted,
+            List<VoterResponse> voters
+    ) {
+    }
+
+    @Builder
+    public record VoterResponse(
+            Long memberId,
+            String nickname,
+            String profileImageUrl
     ) {
     }
 }

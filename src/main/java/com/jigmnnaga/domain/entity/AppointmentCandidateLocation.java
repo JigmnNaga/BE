@@ -33,6 +33,8 @@ public class AppointmentCandidateLocation extends BaseEntity {
 
     private String address;
 
+    private String lineNames;
+
     @Column(nullable = false)
     private Double latitude;
 
@@ -40,9 +42,11 @@ public class AppointmentCandidateLocation extends BaseEntity {
     private Double longitude;
 
     @Builder
-    private AppointmentCandidateLocation(String placeName, String address, Double latitude, Double longitude) {
+    private AppointmentCandidateLocation(String placeName, String address, String lineNames,
+                                         Double latitude, Double longitude) {
         this.placeName = placeName;
         this.address = address;
+        this.lineNames = lineNames;
         this.latitude = latitude;
         this.longitude = longitude;
     }

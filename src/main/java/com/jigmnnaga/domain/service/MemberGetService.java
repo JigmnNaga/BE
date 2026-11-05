@@ -2,6 +2,7 @@ package com.jigmnnaga.domain.service;
 
 import com.jigmnnaga.domain.entity.Member;
 import com.jigmnnaga.domain.repository.MemberRepository;
+import java.util.List;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -18,5 +19,9 @@ public class MemberGetService {
 
     public Optional<Member> findById(Long memberId) {
         return memberRepository.findById(memberId);
+    }
+
+    public List<Member> findAllByIds(List<Long> memberIds) {
+        return memberRepository.findAllById(memberIds);
     }
 }

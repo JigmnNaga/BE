@@ -46,6 +46,7 @@ public enum ErrorCode {
     NEW_HOST_REQUIRED(HttpStatus.BAD_REQUEST, "방장은 나가기 전에 새 방장을 지정해야 합니다."),
     LAST_MEMBER_CANNOT_LEAVE(HttpStatus.BAD_REQUEST, "혼자 남은 약속방은 나갈 수 없습니다. 약속방을 삭제해주세요."),
     INVALID_PREVIOUS_MEMBER(HttpStatus.BAD_REQUEST, "이전 약속에 함께한 다른 멤버만 초대할 수 있습니다."),
+    DEVICE_TOKEN_NOT_FOUND(HttpStatus.NOT_FOUND, "등록되지 않은 기기 토큰입니다."),
     NOTIFICATION_NOT_FOUND(HttpStatus.NOT_FOUND, "존재하지 않는 알림입니다."),
     INVALID_TARGET_MEMBER(HttpStatus.BAD_REQUEST, "약속에 참여 중인 다른 멤버만 선택할 수 있습니다."),
     INVALID_CONFIRMED_DATE(HttpStatus.BAD_REQUEST, "후보 날짜에 포함되지 않은 날짜는 확정할 수 없습니다."),

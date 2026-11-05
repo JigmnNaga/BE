@@ -3,6 +3,7 @@ package com.jigmnnaga.application.mapper;
 import com.jigmnnaga.application.dto.response.ChatMessagePageResponse;
 import com.jigmnnaga.application.dto.response.ChatMessageResponse;
 import com.jigmnnaga.application.dto.response.ChatReadResponse;
+import com.jigmnnaga.application.event.PushEvent;
 import com.jigmnnaga.domain.entity.Appointment;
 import com.jigmnnaga.domain.entity.AppointmentParticipant;
 import com.jigmnnaga.domain.entity.ChatMessage;
@@ -10,10 +11,14 @@ import com.jigmnnaga.domain.entity.ChatMessageType;
 import com.jigmnnaga.domain.entity.Member;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
 import org.springframework.stereotype.Component;
 
 @Component
 public class ChatMessageMapper {
+
+    private static final int MAX_PUSH_BODY_LENGTH = 100;
+    private static final String CHAT_PUSH_TYPE = "CHAT_MESSAGE";
 
     public ChatMessage toTextMessage(Appointment appointment, Member sender, String content) {
         return ChatMessage.builder()
@@ -78,5 +83,17 @@ public class ChatMessageMapper {
                 .filter(participant -> sender == null || !participant.getMember().getId().equals(sender.getId()))
                 .filter(participant -> !participant.hasRead(chatMessage.getId()))
                 .count();
+    }
+
+    public PushEvent toPushEvent(ChatMessage chatMessage, List<Long> recipientIds) {
+        String content = chatMessage.getContent();
+        if (content.length() > MAX_PUSH_BODY_LENGTH) {
+            content = content.substring(0, MAX_PUSH_BODY_LENGTH) + "…";
+        }
+        return new PushEvent(recipientIds, chatMessage.getAppointment().getTitle(),
+                chatMessage.getSender().getNickname() + ": " + content,
+                Map.of("type", CHAT_PUSH_TYPE,
+                        "appointmentId", String.valueOf(chatMessage.getAppointment().getId()),
+                        "messageId", String.valueOf(chatMessage.getId())));
     }
 }

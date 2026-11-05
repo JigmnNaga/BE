@@ -10,6 +10,7 @@ import com.jigmnnaga.domain.entity.Member;
 import com.jigmnnaga.domain.entity.ParticipationStatus;
 import com.jigmnnaga.domain.service.AppointmentDeleteService;
 import com.jigmnnaga.domain.service.AppointmentParticipantGetService;
+import com.jigmnnaga.domain.service.DeviceTokenDeleteService;
 import com.jigmnnaga.domain.service.MemberGetService;
 import com.jigmnnaga.domain.service.NotificationDeleteService;
 import com.jigmnnaga.domain.service.RefreshTokenDeleteService;
@@ -33,6 +34,7 @@ public class MemberWithdrawUseCase {
     private final RefreshTokenDeleteService refreshTokenDeleteService;
     private final KakaoApiClient kakaoApiClient;
     private final NotificationDeleteService notificationDeleteService;
+    private final DeviceTokenDeleteService deviceTokenDeleteService;
     private final AppointmentEventPublisher appointmentEventPublisher;
     private final AppointmentEventFactory appointmentEventFactory;
 
@@ -49,6 +51,7 @@ public class MemberWithdrawUseCase {
         participations.forEach(participation -> cleanUpParticipation(participation, now));
         refreshTokenDeleteService.deleteByMemberId(memberId);
         notificationDeleteService.deleteAllByMemberId(memberId);
+        deviceTokenDeleteService.deleteAllByMemberId(memberId);
         member.withdraw(now);
     }
 

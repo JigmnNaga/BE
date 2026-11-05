@@ -41,3 +41,7 @@ out/
 
 ### Local AI Settings ###
 .claude/
+
+### Firebase ###
+*firebase-adminsdk*.json
+firebase-service-account*.json

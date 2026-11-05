@@ -12,6 +12,7 @@ import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
+import org.springframework.web.client.RestClientResponseException;
 
 @Slf4j
 @Component
@@ -62,8 +63,11 @@ public class KakaoApiClient {
                     .body(form)
                     .retrieve()
                     .toBodilessEntity();
+        } catch (RestClientResponseException e) {
+            log.warn("카카오 연결 끊기에 실패했지만 탈퇴를 계속 진행합니다. kakaoId={}, status={}, body={}",
+                    kakaoId, e.getStatusCode(), e.getResponseBodyAsString());
         } catch (RestClientException e) {
-            throw new BusinessException(ErrorCode.KAKAO_UNLINK_FAILED);
+            log.warn("카카오 연결 끊기 요청에 실패했지만 탈퇴를 계속 진행합니다. kakaoId={}", kakaoId, e);
         }
     }
 }

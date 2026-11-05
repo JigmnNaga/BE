@@ -11,6 +11,7 @@ import com.jigmnnaga.domain.entity.ChatMessage;
 import com.jigmnnaga.domain.service.AppointmentParticipantGetService;
 import com.jigmnnaga.domain.service.ChatMessageSaveService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -21,6 +22,7 @@ public class ChatMessageSendUseCase {
     private final AppointmentParticipantGetService appointmentParticipantGetService;
     private final ChatMessageSaveService chatMessageSaveService;
     private final ChatMessageMapper chatMessageMapper;
+    private final ApplicationEventPublisher applicationEventPublisher;
 
     @Transactional
     public ChatMessageResponse sendMessage(Long memberId, Long appointmentId, ChatMessageSendRequest request) {
@@ -35,6 +37,8 @@ public class ChatMessageSendUseCase {
         ChatMessage chatMessage = chatMessageSaveService.save(
                 chatMessageMapper.toTextMessage(appointment, participant.getMember(), request.content().strip()));
         participant.readUpTo(chatMessage.getId());
+        applicationEventPublisher.publishEvent(chatMessageMapper.toPushEvent(
+                chatMessage, appointment.getAcceptedMemberIdsExcept(memberId)));
 
         int unreadCount = appointment.getAcceptedMemberCount() - 1;
         return chatMessageMapper.toResponse(chatMessage, unreadCount);

@@ -1,0 +1,5 @@
+-- V10: 참석 응답에 '일정 조율 요청'(RESCHEDULE_REQUESTED) 추가
+
+ALTER TABLE appointment_participant
+    MODIFY COLUMN attendance_status
+    ENUM('ATTENDING','NOT_ATTENDING','PENDING','RESCHEDULE_REQUESTED') NOT NULL DEFAULT 'PENDING';

@@ -3,9 +3,12 @@ package com.jigmnnaga.application.mapper;
 import com.jigmnnaga.application.dto.response.NotificationPageResponse;
 import com.jigmnnaga.application.dto.response.NotificationResponse;
 import com.jigmnnaga.application.event.NotificationEvent;
+import com.jigmnnaga.application.event.PushEvent;
 import com.jigmnnaga.domain.entity.Member;
 import com.jigmnnaga.domain.entity.Notification;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import org.springframework.stereotype.Component;
 
 @Component
@@ -44,5 +47,15 @@ public class NotificationMapper {
                 .nextCursor(hasNext ? page.getLast().getId() : null)
                 .hasNext(hasNext)
                 .build();
+    }
+
+    public PushEvent toPushEvent(NotificationEvent event, List<Member> recipients) {
+        Map<String, String> data = new HashMap<>();
+        data.put("type", event.type().name());
+        if (event.appointmentId() != null) {
+            data.put("appointmentId", String.valueOf(event.appointmentId()));
+        }
+        return new PushEvent(recipients.stream().map(Member::getId).toList(), event.appointmentId(),
+                event.title(), event.body(), data);
     }
 }

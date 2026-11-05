@@ -69,6 +69,39 @@ public class AppointmentEventFactory {
                 "'" + appointment.getTitle() + "' 약속방에서 내보내졌어요.");
     }
 
+    public NotificationEvent voteDeadlineSoon(Appointment appointment, List<Long> recipientIds) {
+        return new NotificationEvent(recipientIds, appointment.getId(), NotificationType.VOTE_DEADLINE_SOON,
+                "투표 마감이 다가와요",
+                "'" + appointment.getTitle() + "' 약속의 응답 기한이 " + formatDateTime(appointment.getResponseDeadline())
+                        + "에 마감돼요. 가능한 시간과 희망 장소를 선택해 주세요.");
+    }
+
+    public NotificationEvent responseDeadlineClosed(Appointment appointment, Long hostId) {
+        return new NotificationEvent(List.of(hostId), appointment.getId(), NotificationType.RESPONSE_DEADLINE_CLOSED,
+                "응답 기한이 마감됐어요",
+                "'" + appointment.getTitle() + "' 약속의 응답이 마감됐어요. 멤버들의 일정을 확인하고 약속을 확정해 주세요.");
+    }
+
+    public NotificationEvent appointmentSoon(Appointment appointment, List<Long> recipientIds) {
+        return new NotificationEvent(recipientIds, appointment.getId(), NotificationType.APPOINTMENT_SOON,
+                "약속 5시간 전이에요",
+                "'" + appointment.getTitle() + "' " + confirmedSummary(appointment));
+    }
+
+    public NotificationEvent rescheduleRequested(Appointment appointment, String requesterNickname, Long hostId) {
+        return new NotificationEvent(List.of(hostId), appointment.getId(), NotificationType.RESCHEDULE_REQUESTED,
+                "일정 조율 요청이 왔어요",
+                requesterNickname + "님이 '" + appointment.getTitle() + "' 약속의 일정 조율을 요청했어요.");
+    }
+
+    public String rescheduleRequestedChatMessage(String requesterNickname) {
+        return requesterNickname + "님이 일정 조율을 요청했어요";
+    }
+
+    public String responseDeadlineClosedChatMessage() {
+        return "응답 기한이 마감됐어요. 방장은 일정을 확정해 주세요.";
+    }
+
     public String confirmedChatMessage(Appointment appointment) {
         return "약속이 확정됐어요" + SEPARATOR + confirmedSummary(appointment);
     }

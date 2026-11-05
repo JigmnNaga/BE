@@ -71,6 +71,12 @@ public class Appointment extends BaseEntity {
     @Column(nullable = false)
     private boolean canceled = false;
 
+    private LocalDateTime deadlineReminderSentAt;
+
+    private LocalDateTime deadlineClosedNotifiedAt;
+
+    private LocalDateTime preAppointmentNotifiedAt;
+
     @OneToMany(mappedBy = "appointment", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<AppointmentCandidateDate> candidateDates = new ArrayList<>();
 
@@ -93,6 +99,7 @@ public class Appointment extends BaseEntity {
         boolean isChanged = !confirmedDate.equals(this.confirmedDate) || !confirmedTime.equals(this.confirmedTime);
         if (isChanged) {
             participants.forEach(AppointmentParticipant::resetAttendance);
+            this.preAppointmentNotifiedAt = null;
         }
         this.confirmedDate = confirmedDate;
         this.confirmedTime = confirmedTime;
@@ -147,7 +154,30 @@ public class Appointment extends BaseEntity {
     }
 
     public void updateResponseDeadline(LocalDateTime responseDeadline) {
+        if (!responseDeadline.equals(this.responseDeadline)) {
+            this.deadlineReminderSentAt = null;
+            this.deadlineClosedNotifiedAt = null;
+        }
         this.responseDeadline = responseDeadline;
+    }
+
+    public void markDeadlineReminderSent(LocalDateTime sentAt) {
+        this.deadlineReminderSentAt = sentAt;
+    }
+
+    public void markDeadlineClosedNotified(LocalDateTime notifiedAt) {
+        this.deadlineClosedNotifiedAt = notifiedAt;
+    }
+
+    public void markPreAppointmentNotified(LocalDateTime notifiedAt) {
+        this.preAppointmentNotifiedAt = notifiedAt;
+    }
+
+    public Optional<Long> getHostMemberId() {
+        return participants.stream()
+                .filter(AppointmentParticipant::isHost)
+                .map(participant -> participant.getMember().getId())
+                .findFirst();
     }
 
     public List<Long> getAcceptedMemberIdsExcept(Long excludedMemberId) {
@@ -198,7 +228,7 @@ public class Appointment extends BaseEntity {
     }
 
     public boolean isConfirmed() {
-        return confirmedDate != null && confirmedLocation != null;
+        return confirmedDate != null && confirmedLocation != null && detailPlaceName != null;
     }
 
     public boolean isUpcoming(LocalDateTime now) {

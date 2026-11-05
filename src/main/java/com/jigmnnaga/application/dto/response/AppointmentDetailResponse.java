@@ -27,6 +27,7 @@ public record AppointmentDetailResponse(
         DetailPlaceResponse detailPlace,
         ParticipantRole myRole,
         AttendanceStatus myAttendanceStatus,
+        boolean myNotificationEnabled,
         int joinedCount,
         int scheduleSubmittedCount,
         List<MemberStatusResponse> members

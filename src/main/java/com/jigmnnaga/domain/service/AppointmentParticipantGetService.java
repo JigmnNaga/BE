@@ -26,6 +26,10 @@ public class AppointmentParticipantGetService {
                 .filter(participant -> participant.getStatus() == ParticipationStatus.ACCEPTED);
     }
 
+    public List<Long> findAllMutedMemberIdsByAppointmentId(Long appointmentId) {
+        return appointmentParticipantRepository.findAllMutedMemberIdsByAppointmentId(appointmentId);
+    }
+
     public List<AppointmentParticipant> findAllAcceptedWithMemberByAppointmentId(Long appointmentId) {
         return appointmentParticipantRepository.findAllWithMemberByAppointmentIdAndStatus(
                 appointmentId, ParticipationStatus.ACCEPTED);

@@ -159,6 +159,13 @@ public class Appointment extends BaseEntity {
         participants.remove(participant);
     }
 
+    public Optional<String> getHostNickname() {
+        return participants.stream()
+                .filter(AppointmentParticipant::isHost)
+                .map(participant -> participant.getMember().getNickname())
+                .findFirst();
+    }
+
     public void cancel() {
         this.canceled = true;
     }

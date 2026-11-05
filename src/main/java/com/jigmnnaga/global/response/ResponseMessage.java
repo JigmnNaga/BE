@@ -27,7 +27,8 @@ public enum ResponseMessage {
     APPOINTMENT_DELETE_SUCCESS("약속방을 삭제했습니다."),
     APPOINTMENT_LEAVE_SUCCESS("약속방을 나갔습니다."),
     PARTICIPANT_KICK_SUCCESS("멤버를 내보냈습니다."),
-    HOST_DELEGATE_SUCCESS("방장을 위임했습니다.");
+    HOST_DELEGATE_SUCCESS("방장을 위임했습니다."),
+    MY_INVITES_GET_SUCCESS("받은 초대 목록을 조회했습니다.");
 
     private final String message;
 }

@@ -35,6 +35,11 @@ public class AppointmentParticipantGetService {
         return appointmentParticipantRepository.findAllWithMemberByAppointment(appointment);
     }
 
+    public List<AppointmentParticipant> findAllPendingWithAppointmentByMemberId(Long memberId) {
+        return appointmentParticipantRepository.findAllWithAppointmentByMemberIdAndStatus(
+                memberId, ParticipationStatus.PENDING);
+    }
+
     public List<AppointmentParticipant> findAllAcceptedWithAppointmentByMemberId(Long memberId) {
         return appointmentParticipantRepository.findAllWithAppointmentByMemberIdAndStatus(
                 memberId, ParticipationStatus.ACCEPTED);

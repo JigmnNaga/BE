@@ -4,6 +4,7 @@ import com.jigmnnaga.application.dto.response.ChatMessagePageResponse;
 import com.jigmnnaga.application.exception.BusinessException;
 import com.jigmnnaga.application.exception.ErrorCode;
 import com.jigmnnaga.application.mapper.ChatMessageMapper;
+import com.jigmnnaga.domain.entity.AppointmentParticipant;
 import com.jigmnnaga.domain.entity.ChatMessage;
 import com.jigmnnaga.domain.service.AppointmentParticipantGetService;
 import com.jigmnnaga.domain.service.ChatMessageGetService;
@@ -22,10 +23,13 @@ public class ChatMessageGetUseCase {
 
     @Transactional(readOnly = true)
     public ChatMessagePageResponse getMessages(Long memberId, Long appointmentId, Long cursor, int size) {
-        appointmentParticipantGetService.findAcceptedByAppointmentIdAndMemberId(appointmentId, memberId)
+        AppointmentParticipant me = appointmentParticipantGetService
+                .findAcceptedByAppointmentIdAndMemberId(appointmentId, memberId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.NOT_APPOINTMENT_PARTICIPANT));
+        List<AppointmentParticipant> participants =
+                appointmentParticipantGetService.findAllAcceptedWithMemberByAppointmentId(appointmentId);
 
         List<ChatMessage> newestFirst = chatMessageGetService.findAllBeforeCursor(appointmentId, cursor, size + 1);
-        return chatMessageMapper.toPageResponse(newestFirst, size);
+        return chatMessageMapper.toPageResponse(newestFirst, size, participants, me);
     }
 }

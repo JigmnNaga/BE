@@ -6,6 +6,7 @@ import lombok.Builder;
 @Builder
 public record ChatMessagePageResponse(
         List<ChatMessageResponse> messages,
+        Long myLastReadMessageId,
         Long nextCursor,
         boolean hasNext
 ) {

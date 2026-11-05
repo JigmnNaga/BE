@@ -17,6 +17,7 @@ public record MyAppointmentResponse(
         String detailPlaceName,
         LocalDate candidateStartDate,
         LocalDate candidateEndDate,
-        int memberCount
+        int memberCount,
+        int unreadMessageCount
 ) {
 }

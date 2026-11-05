@@ -14,7 +14,7 @@ import org.springframework.stereotype.Component;
 @Component
 public class MyAppointmentMapper {
 
-    public MyAppointmentResponse toMyAppointmentResponse(Appointment appointment) {
+    public MyAppointmentResponse toMyAppointmentResponse(Appointment appointment, Map<Long, Long> unreadCounts) {
         return MyAppointmentResponse.builder()
                 .appointmentId(appointment.getId())
                 .title(appointment.getTitle())
@@ -29,10 +29,11 @@ public class MyAppointmentMapper {
                 .candidateStartDate(appointment.getFirstCandidateDate())
                 .candidateEndDate(appointment.getLastCandidateDate())
                 .memberCount(appointment.getAcceptedMemberCount())
+                .unreadMessageCount(unreadCounts.getOrDefault(appointment.getId(), 0L).intValue())
                 .build();
     }
 
-    public CalendarResponse toCalendarResponse(List<Appointment> appointments) {
+    public CalendarResponse toCalendarResponse(List<Appointment> appointments, Map<Long, Long> unreadCounts) {
         Map<LocalDate, List<Appointment>> appointmentsByDate = appointments.stream()
                 .collect(Collectors.groupingBy(Appointment::getConfirmedDate, TreeMap::new, Collectors.toList()));
 
@@ -41,7 +42,7 @@ public class MyAppointmentMapper {
                         .date(entry.getKey())
                         .appointments(entry.getValue().stream()
                                 .sorted(Comparator.comparing(Appointment::getConfirmedTime))
-                                .map(this::toMyAppointmentResponse)
+                                .map(appointment -> toMyAppointmentResponse(appointment, unreadCounts))
                                 .toList())
                         .build())
                 .toList();

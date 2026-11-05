@@ -2,7 +2,9 @@ package com.jigmnnaga.presentation;
 
 import com.jigmnnaga.application.dto.request.AppointmentLeaveRequest;
 import com.jigmnnaga.application.dto.request.HostDelegateRequest;
+import com.jigmnnaga.application.dto.response.ReminderSendResponse;
 import com.jigmnnaga.application.usecase.ParticipantManageUseCase;
+import com.jigmnnaga.application.usecase.ReminderSendUseCase;
 import com.jigmnnaga.global.auth.LoginMember;
 import com.jigmnnaga.global.response.CommonResponse;
 import com.jigmnnaga.global.response.ResponseMessage;
@@ -25,6 +27,7 @@ import org.springframework.web.bind.annotation.RestController;
 public class ParticipantController {
 
     private final ParticipantManageUseCase participantManageUseCase;
+    private final ReminderSendUseCase reminderSendUseCase;
 
     @Operation(summary = "약속방 나가기", description = "약속방을 나갑니다. 내 일정 선택과 참석 응답은 삭제되며, 응답 기한 내에는 초대 링크로 다시 참여할 수 있습니다. 방장은 newHostMemberId로 새 방장을 지정해야 하며, 혼자 남은 경우 나갈 수 없습니다.")
     @PostMapping("/leave")
@@ -57,5 +60,15 @@ public class ParticipantController {
     ) {
         participantManageUseCase.delegateHost(memberId, appointmentId, request);
         return CommonResponse.success(ResponseMessage.HOST_DELEGATE_SUCCESS);
+    }
+
+    @Operation(summary = "미응답자 요청 알림", description = "방장이 미응답자에게 요청 알림을 보냅니다. 확정 전에는 가능 시간을 제출하지 않은 멤버에게 입력 요청을, 확정 후에는 참석 응답을 하지 않은 멤버에게 참석 여부 요청을 보냅니다.")
+    @PostMapping("/reminders")
+    public CommonResponse<ReminderSendResponse> sendReminder(
+            @Parameter(hidden = true) @LoginMember Long memberId,
+            @PathVariable Long appointmentId
+    ) {
+        ReminderSendResponse response = reminderSendUseCase.sendReminder(memberId, appointmentId);
+        return CommonResponse.success(ResponseMessage.REMINDER_SEND_SUCCESS, response);
     }
 }

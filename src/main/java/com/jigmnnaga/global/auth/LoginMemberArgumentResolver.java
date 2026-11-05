@@ -35,9 +35,6 @@ public class LoginMemberArgumentResolver implements HandlerMethodArgumentResolve
         }
 
         String token = authorization.substring(BEARER_PREFIX.length());
-        if (!jwtProvider.validateToken(token)) {
-            throw new BusinessException(ErrorCode.INVALID_ACCESS_TOKEN);
-        }
-        return jwtProvider.getMemberId(token);
+        return jwtProvider.getMemberIdFromAccessToken(token);
     }
 }

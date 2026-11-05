@@ -4,9 +4,7 @@ import com.jigmnnaga.application.dto.response.PlaceSearchResponse;
 import com.jigmnnaga.application.dto.response.kakao.KakaoPlaceSearchResponse;
 import com.jigmnnaga.application.dto.response.kakao.KakaoPlaceSearchResponse.KakaoPlace;
 import java.util.ArrayList;
-import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Map;
 import org.springframework.stereotype.Component;
 
 @Component
@@ -15,6 +13,8 @@ public class PlaceMapper {
     private static final String CATEGORY_SEPARATOR = " > ";
     private static final String LINE_SEPARATOR = ", ";
     private static final String METROPOLITAN_PREFIX = "수도권";
+    private static final double SAME_STATION_DISTANCE_METERS = 1_000;
+    private static final double EARTH_RADIUS_METERS = 6_371_000;
 
     public PlaceSearchResponse toPlaceSearchResponse(KakaoPlaceSearchResponse response) {
         List<PlaceSearchResponse.PlaceResponse> places = response.documents().stream()
@@ -28,12 +28,15 @@ public class PlaceMapper {
     }
 
     public PlaceSearchResponse toStationSearchResponse(KakaoPlaceSearchResponse response) {
-        Map<String, List<KakaoPlace>> platformsByStation = new LinkedHashMap<>();
+        List<List<KakaoPlace>> stationGroups = new ArrayList<>();
         for (KakaoPlace place : response.documents()) {
-            platformsByStation.computeIfAbsent(stationKey(place), key -> new ArrayList<>()).add(place);
+            stationGroups.stream()
+                    .filter(group -> isSameStation(group.getFirst(), place))
+                    .findFirst()
+                    .ifPresentOrElse(group -> group.add(place), () -> stationGroups.add(new ArrayList<>(List.of(place))));
         }
 
-        List<PlaceSearchResponse.PlaceResponse> stations = platformsByStation.values().stream()
+        List<PlaceSearchResponse.PlaceResponse> stations = stationGroups.stream()
                 .map(platforms -> {
                     KakaoPlace representative = platforms.getFirst();
                     String lineNames = String.join(LINE_SEPARATOR, platforms.stream()
@@ -62,8 +65,20 @@ public class PlaceMapper {
                 .build();
     }
 
-    private String stationKey(KakaoPlace place) {
-        return stationName(place) + "|" + regionOf(place.addressName());
+    private boolean isSameStation(KakaoPlace station, KakaoPlace place) {
+        return stationName(station).equals(stationName(place))
+                && distanceMeters(station, place) <= SAME_STATION_DISTANCE_METERS;
+    }
+
+    private double distanceMeters(KakaoPlace from, KakaoPlace to) {
+        double fromLatitude = Math.toRadians(Double.parseDouble(from.y()));
+        double toLatitude = Math.toRadians(Double.parseDouble(to.y()));
+        double latitudeDelta = toLatitude - fromLatitude;
+        double longitudeDelta = Math.toRadians(Double.parseDouble(to.x()) - Double.parseDouble(from.x()));
+
+        double haversine = Math.pow(Math.sin(latitudeDelta / 2), 2)
+                + Math.cos(fromLatitude) * Math.cos(toLatitude) * Math.pow(Math.sin(longitudeDelta / 2), 2);
+        return 2 * EARTH_RADIUS_METERS * Math.asin(Math.sqrt(haversine));
     }
 
     private String stationName(KakaoPlace place) {
@@ -87,14 +102,6 @@ public class PlaceMapper {
         return categoryLineName.startsWith(METROPOLITAN_PREFIX)
                 ? categoryLineName.substring(METROPOLITAN_PREFIX.length())
                 : categoryLineName;
-    }
-
-    private String regionOf(String addressName) {
-        if (addressName == null) {
-            return "";
-        }
-        String[] tokens = addressName.split(" ");
-        return String.join(" ", List.of(tokens).subList(0, Math.min(2, tokens.length)));
     }
 
     private String emptyToNull(String value) {

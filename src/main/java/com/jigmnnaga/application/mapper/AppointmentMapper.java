@@ -19,7 +19,7 @@ import org.springframework.stereotype.Component;
 public class AppointmentMapper {
 
     public Appointment toAppointment(AppointmentCreateRequest request, List<LocalDate> sortedDates,
-                                     Member host, String inviteCode) {
+                                     Member host, List<Member> invitedMembers, String inviteCode) {
         Appointment appointment = Appointment.builder()
                 .title(request.title().strip())
                 .dateSelectionType(request.dateSelectionType())
@@ -39,6 +39,12 @@ public class AppointmentMapper {
                 .role(ParticipantRole.HOST)
                 .status(ParticipationStatus.ACCEPTED)
                 .build());
+
+        invitedMembers.forEach(member -> appointment.addParticipant(AppointmentParticipant.builder()
+                .member(member)
+                .role(ParticipantRole.MEMBER)
+                .status(ParticipationStatus.PENDING)
+                .build()));
 
         return appointment;
     }

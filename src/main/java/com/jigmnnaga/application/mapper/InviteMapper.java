@@ -2,6 +2,7 @@ package com.jigmnnaga.application.mapper;
 
 import com.jigmnnaga.application.dto.response.InviteInfoResponse;
 import com.jigmnnaga.application.dto.response.ParticipantResponse;
+import com.jigmnnaga.application.dto.response.ReceivedInviteResponse;
 import com.jigmnnaga.domain.entity.Appointment;
 import com.jigmnnaga.domain.entity.AppointmentParticipant;
 import com.jigmnnaga.domain.entity.Member;
@@ -55,6 +56,18 @@ public class InviteMapper {
                 .joinedCount(joinedCount)
                 .myStatus(myStatus)
                 .participants(participantResponses)
+                .build();
+    }
+
+    public ReceivedInviteResponse toReceivedInviteResponse(Appointment appointment) {
+        return ReceivedInviteResponse.builder()
+                .appointmentId(appointment.getId())
+                .title(appointment.getTitle())
+                .hostNickname(appointment.getHostNickname().orElse(null))
+                .inviteCode(appointment.getInviteCode())
+                .candidateStartDate(appointment.getFirstCandidateDate())
+                .candidateEndDate(appointment.getLastCandidateDate())
+                .responseDeadline(appointment.getResponseDeadline())
                 .build();
     }
 

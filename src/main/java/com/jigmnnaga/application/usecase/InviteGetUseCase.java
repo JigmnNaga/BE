@@ -1,6 +1,7 @@
 package com.jigmnnaga.application.usecase;
 
 import com.jigmnnaga.application.dto.response.InviteInfoResponse;
+import com.jigmnnaga.application.dto.response.ReceivedInviteResponse;
 import com.jigmnnaga.application.exception.BusinessException;
 import com.jigmnnaga.application.exception.ErrorCode;
 import com.jigmnnaga.application.mapper.InviteMapper;
@@ -10,6 +11,7 @@ import com.jigmnnaga.domain.service.AppointmentGetService;
 import com.jigmnnaga.domain.service.AppointmentParticipantGetService;
 import com.jigmnnaga.global.util.TimeZones;
 import java.time.LocalDateTime;
+import java.util.Comparator;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
@@ -33,5 +35,17 @@ public class InviteGetUseCase {
         boolean expired = appointment.isInviteExpired(LocalDateTime.now(TimeZones.SEOUL));
 
         return inviteMapper.toInviteInfoResponse(appointment, participants, memberId, expired);
+    }
+
+    @Transactional(readOnly = true)
+    public List<ReceivedInviteResponse> getReceivedInvites(Long memberId) {
+        LocalDateTime now = LocalDateTime.now(TimeZones.SEOUL);
+
+        return appointmentParticipantGetService.findAllPendingWithAppointmentByMemberId(memberId).stream()
+                .map(AppointmentParticipant::getAppointment)
+                .filter(appointment -> !appointment.isCanceled() && !appointment.isInviteExpired(now))
+                .sorted(Comparator.comparing(Appointment::getResponseDeadline))
+                .map(inviteMapper::toReceivedInviteResponse)
+                .toList();
     }
 }

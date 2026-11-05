@@ -25,8 +25,20 @@ public record AppointmentCreateRequest(
         @NotEmpty @Size(max = 5) List<@Valid @NotNull CandidateLocationRequest> candidateLocations,
 
         @Schema(description = "참여 응답 기한", example = "2026-09-03T23:59:59")
-        @NotNull LocalDateTime responseDeadline
+        @NotNull LocalDateTime responseDeadline,
+
+        @Schema(description = "이전 약속 멤버 바로 초대 (선택, 다시 약속 잡기 시 사용)")
+        @Valid PreviousMembersRequest previousMembers
 ) {
+
+    public record PreviousMembersRequest(
+            @Schema(description = "이전 약속 ID", example = "1")
+            @NotNull Long appointmentId,
+
+            @Schema(description = "바로 초대할 이전 약속 멤버 ID 목록", example = "[2, 3]")
+            @NotEmpty List<@NotNull Long> memberIds
+    ) {
+    }
 
     public record CandidateLocationRequest(
             @Schema(description = "장소 이름", example = "강남역")

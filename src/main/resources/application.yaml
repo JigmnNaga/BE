@@ -32,3 +32,4 @@ invite:
 
 kakao:
   rest-api-key: ${KAKAO_REST_API_KEY:}
+  admin-key: ${KAKAO_ADMIN_KEY:}

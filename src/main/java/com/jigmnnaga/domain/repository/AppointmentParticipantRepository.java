@@ -27,6 +27,9 @@ public interface AppointmentParticipantRepository extends JpaRepository<Appointm
             @Param("status") ParticipationStatus status
     );
 
+    @Query("select p from AppointmentParticipant p join fetch p.appointment where p.member.id = :memberId")
+    List<AppointmentParticipant> findAllWithAppointmentByMemberId(@Param("memberId") Long memberId);
+
     @Query("select p from AppointmentParticipant p join fetch p.appointment "
             + "where p.member.id = :memberId and p.status = :status")
     List<AppointmentParticipant> findAllWithAppointmentByMemberIdAndStatus(

@@ -2,6 +2,7 @@ package com.jigmnnaga.global.auth;
 
 import com.jigmnnaga.application.exception.BusinessException;
 import com.jigmnnaga.application.exception.ErrorCode;
+import com.jigmnnaga.domain.service.MemberGetService;
 import com.jigmnnaga.global.jwt.JwtProvider;
 import lombok.RequiredArgsConstructor;
 import org.springframework.core.MethodParameter;
@@ -19,6 +20,7 @@ public class LoginMemberArgumentResolver implements HandlerMethodArgumentResolve
     private static final String BEARER_PREFIX = "Bearer ";
 
     private final JwtProvider jwtProvider;
+    private final MemberGetService memberGetService;
 
     @Override
     public boolean supportsParameter(MethodParameter parameter) {
@@ -35,6 +37,14 @@ public class LoginMemberArgumentResolver implements HandlerMethodArgumentResolve
         }
 
         String token = authorization.substring(BEARER_PREFIX.length());
-        return jwtProvider.getMemberIdFromAccessToken(token);
+        Long memberId = jwtProvider.getMemberIdFromAccessToken(token);
+
+        boolean isActiveMember = memberGetService.findById(memberId)
+                .filter(member -> !member.isWithdrawn())
+                .isPresent();
+        if (!isActiveMember) {
+            throw new BusinessException(ErrorCode.WITHDRAWN_MEMBER);
+        }
+        return memberId;
     }
 }

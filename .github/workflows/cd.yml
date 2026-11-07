@@ -1,4 +1,3 @@
-
 name: Backend CD
 
 on:
@@ -72,6 +71,14 @@ jobs:
 
           docker pull "$IMAGE"
 
+          echo "Checking available disk space..."
+          AVAILABLE_KB=$(df -Pk / | awk 'NR==2 {print $4}')
+
+          if [ "$AVAILABLE_KB" -lt 524288 ]; then
+            echo "Insufficient disk space: less than 512MiB available"
+            exit 1
+          fi
+
           echo "Preparing Docker network..."
           docker network inspect jigmnnaga-network >/dev/null 2>&1 ||
             docker network create jigmnnaga-network
@@ -87,15 +94,26 @@ jobs:
               --restart unless-stopped \
               --network jigmnnaga-network \
               --network-alias redis \
+              --memory 128m \
+              --memory-swap 256m \
               --mount source=jigmnnaga-redis-data,target=/data \
               --health-cmd "redis-cli ping" \
               --health-interval 10s \
               --health-timeout 3s \
               --health-retries 5 \
               redis:7.4-alpine \
-              redis-server --appendonly yes
+              redis-server \
+                --appendonly yes \
+                --maxmemory 64mb \
+                --maxmemory-policy allkeys-lru
           else
+            docker update \
+              --memory 128m \
+              --memory-swap 256m \
+              jigmnnaga-redis
+
             docker start jigmnnaga-redis >/dev/null || true
+
             docker network connect \
               --alias redis \
               jigmnnaga-network jigmnnaga-redis 2>/dev/null || true

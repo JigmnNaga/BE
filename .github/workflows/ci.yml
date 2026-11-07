@@ -28,6 +28,16 @@ jobs:
           --health-timeout=5s
           --health-retries=10
 
+      redis:
+        image: redis:7.4-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd="redis-cli ping"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+
     steps:
       - name: Checkout
         uses: actions/checkout@v5
@@ -50,4 +60,6 @@ jobs:
           JWT_SECRET: ci-test-jwt-secret-key-at-least-32-bytes-long
           JWT_ACCESS_EXPIRATION: '3600000'
           JWT_REFRESH_EXPIRATION: '1209600000'
+          REDIS_HOST: 127.0.0.1
+          REDIS_PORT: '6379'
         run: ./gradlew clean build

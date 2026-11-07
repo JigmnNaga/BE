@@ -72,13 +72,70 @@ jobs:
 
           docker pull "$IMAGE"
 
+          echo "Preparing Docker network..."
+          docker network inspect jigmnnaga-network >/dev/null 2>&1 ||
+            docker network create jigmnnaga-network
+
+          echo "Preparing Redis volume..."
+          docker volume inspect jigmnnaga-redis-data >/dev/null 2>&1 ||
+            docker volume create jigmnnaga-redis-data
+
+          echo "Preparing Redis container..."
+          if ! docker container inspect jigmnnaga-redis >/dev/null 2>&1; then
+            docker run -d \
+              --name jigmnnaga-redis \
+              --restart unless-stopped \
+              --network jigmnnaga-network \
+              --network-alias redis \
+              --mount source=jigmnnaga-redis-data,target=/data \
+              --health-cmd "redis-cli ping" \
+              --health-interval 10s \
+              --health-timeout 3s \
+              --health-retries 5 \
+              redis:7.4-alpine \
+              redis-server --appendonly yes
+          else
+            docker start jigmnnaga-redis >/dev/null || true
+            docker network connect \
+              --alias redis \
+              jigmnnaga-network jigmnnaga-redis 2>/dev/null || true
+          fi
+
+          echo "Waiting for Redis health check..."
+          REDIS_READY=false
+
+          for i in $(seq 1 30); do
+            REDIS_STATUS=$(docker inspect \
+              --format '{{.State.Health.Status}}' \
+              jigmnnaga-redis 2>/dev/null) || true
+
+            if [ "$REDIS_STATUS" = "healthy" ]; then
+              REDIS_READY=true
+              break
+            fi
+
+            sleep 2
+          done
+
+          if [ "$REDIS_READY" != "true" ]; then
+            echo "Redis health check failed"
+            docker logs --tail 100 jigmnnaga-redis || true
+            exit 1
+          fi
+
+          echo "Redis is healthy"
+
+          echo "Deploying backend..."
           docker rm -f jigmnnaga-backend || true
 
           docker run -d \
             --name jigmnnaga-backend \
             --restart unless-stopped \
+            --network jigmnnaga-network \
             -p 8080:8080 \
             --env-file /home/ec2-user/jigmnnaga.env \
+            -e REDIS_HOST=redis \
+            -e REDIS_PORT=6379 \
             "$IMAGE"
 
           echo "Waiting for Spring Boot health check..."

@@ -227,6 +227,18 @@ public class Appointment extends BaseEntity {
         participants.forEach(participant -> participant.clearPreferredLocationIfIn(candidateLocations));
     }
 
+    public double getDestinationLatitude() {
+        return detailPlaceLatitude != null ? detailPlaceLatitude : confirmedLocation.getLatitude();
+    }
+
+    public double getDestinationLongitude() {
+        return detailPlaceLongitude != null ? detailPlaceLongitude : confirmedLocation.getLongitude();
+    }
+
+    public String getDestinationName() {
+        return detailPlaceName != null ? detailPlaceName : confirmedLocation.getPlaceName();
+    }
+
     public boolean isConfirmed() {
         return confirmedDate != null && confirmedLocation != null && detailPlaceName != null;
     }

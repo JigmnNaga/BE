@@ -4,6 +4,7 @@ import com.fasterxml.jackson.annotation.JsonFormat;
 import com.jigmnnaga.domain.entity.AttendanceStatus;
 import com.jigmnnaga.domain.entity.DateSelectionType;
 import com.jigmnnaga.domain.entity.ParticipantRole;
+import com.jigmnnaga.domain.entity.TravelMode;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
@@ -28,6 +29,7 @@ public record AppointmentDetailResponse(
         ParticipantRole myRole,
         AttendanceStatus myAttendanceStatus,
         boolean myNotificationEnabled,
+        TravelMode myTravelMode,
         int joinedCount,
         int scheduleSubmittedCount,
         List<MemberStatusResponse> members
@@ -60,7 +62,8 @@ public record AppointmentDetailResponse(
             String profileImageUrl,
             ParticipantRole role,
             boolean scheduleSubmitted,
-            AttendanceStatus attendanceStatus
+            AttendanceStatus attendanceStatus,
+            TravelMode travelMode
     ) {
     }
 }

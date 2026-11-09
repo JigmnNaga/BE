@@ -90,6 +90,7 @@ public class AppointmentMapper {
                         .role(participant.getRole())
                         .scheduleSubmitted(participant.hasSubmittedSchedule())
                         .attendanceStatus(participant.getAttendanceStatus())
+                        .travelMode(participant.getTravelMode())
                         .build())
                 .toList();
 
@@ -121,6 +122,7 @@ public class AppointmentMapper {
                 .myRole(me.getRole())
                 .myAttendanceStatus(me.getAttendanceStatus())
                 .myNotificationEnabled(me.isNotificationEnabled())
+                .myTravelMode(me.getTravelMode())
                 .joinedCount(participants.size())
                 .scheduleSubmittedCount(scheduleSubmittedCount)
                 .members(members)

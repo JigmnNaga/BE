@@ -51,6 +51,8 @@ public enum ErrorCode {
     INVALID_PREVIOUS_MEMBER(HttpStatus.BAD_REQUEST, "이전 약속에 함께한 다른 멤버만 초대할 수 있습니다."),
     DEVICE_TOKEN_NOT_FOUND(HttpStatus.NOT_FOUND, "등록되지 않은 기기 토큰입니다."),
     NOTIFICATION_NOT_FOUND(HttpStatus.NOT_FOUND, "존재하지 않는 알림입니다."),
+    TRAVEL_DESTINATION_NOT_CONFIRMED(HttpStatus.BAD_REQUEST, "약속 일정과 세부 장소가 확정된 후에 이동수단을 선택할 수 있습니다."),
+    TRAVEL_MODE_TIME_PASSED(HttpStatus.BAD_REQUEST, "약속 시간이 지나 이동수단을 변경할 수 없습니다."),
     INVALID_TARGET_MEMBER(HttpStatus.BAD_REQUEST, "약속에 참여 중인 다른 멤버만 선택할 수 있습니다."),
     INVALID_CONFIRMED_DATE(HttpStatus.BAD_REQUEST, "후보 날짜에 포함되지 않은 날짜는 확정할 수 없습니다."),
     APPOINTMENT_NOT_CONFIRMED(HttpStatus.BAD_REQUEST, "약속 일정과 세부 장소가 확정된 후에 참석 응답할 수 있습니다."),

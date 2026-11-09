@@ -15,6 +15,7 @@ import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
@@ -23,6 +24,8 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import org.hibernate.annotations.ColumnDefault;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 @Getter
 @Entity
@@ -74,6 +77,15 @@ public class AppointmentParticipant extends BaseEntity {
     @Column(nullable = false)
     private boolean notificationEnabled = true;
 
+    @Enumerated(EnumType.STRING)
+    @JdbcTypeCode(SqlTypes.VARCHAR)
+    @Column(length = 20)
+    private TravelMode travelMode;
+
+    private Integer travelDurationMinutes;
+
+    private LocalDateTime travelModeSelectedAt;
+
     @Builder
     private AppointmentParticipant(Member member, ParticipantRole role, ParticipationStatus status) {
         this.member = member;
@@ -97,6 +109,12 @@ public class AppointmentParticipant extends BaseEntity {
             availability.assignParticipant(this);
         });
         this.preferredLocation = preferredLocation;
+    }
+
+    public void selectTravelMode(TravelMode travelMode, Integer travelDurationMinutes, LocalDateTime selectedAt) {
+        this.travelMode = travelMode;
+        this.travelDurationMinutes = travelDurationMinutes;
+        this.travelModeSelectedAt = selectedAt;
     }
 
     public void updateNotificationEnabled(boolean notificationEnabled) {

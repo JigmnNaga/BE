@@ -74,7 +74,7 @@ public class TravelOptionUseCase {
                         appointment.getDestinationLongitude(), appointment.getDestinationLatitude())
                 .ifPresent(route -> options.add(travelOptionMapper.fromCarRoute(route, now)));
 
-        return travelOptionMapper.toTravelOptionsResponse(appointment, me, options);
+        return travelOptionMapper.toTravelOptionsResponse(appointment, me, options, now);
     }
 
     @Transactional

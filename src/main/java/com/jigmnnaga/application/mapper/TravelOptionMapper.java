@@ -23,16 +23,25 @@ public class TravelOptionMapper {
     private static final String VEHICLE_NAME_SEPARATOR = ", ";
 
     public TravelOptionsResponse toTravelOptionsResponse(Appointment appointment, AppointmentParticipant me,
-                                                         List<TravelOptionResponse> options) {
+                                                         List<TravelOptionResponse> options, LocalDateTime now) {
+        LocalDateTime departureTime = calculateDepartureTime(appointment, me);
         return TravelOptionsResponse.builder()
                 .destinationName(appointment.getDestinationName())
                 .destinationLatitude(appointment.getDestinationLatitude())
                 .destinationLongitude(appointment.getDestinationLongitude())
                 .appointmentDateTime(appointment.getConfirmedDateTime())
-                .departureTime(calculateDepartureTime(appointment, me))
+                .departureTime(departureTime)
+                .departureRequired(calculateDepartureRequired(departureTime, now))
                 .myTravelMode(me.getTravelMode())
                 .options(options)
                 .build();
+    }
+
+    public Boolean calculateDepartureRequired(LocalDateTime departureTime, LocalDateTime now) {
+        if (departureTime == null) {
+            return null;
+        }
+        return !now.isBefore(departureTime);
     }
 
     public LocalDateTime calculateDepartureTime(Appointment appointment, AppointmentParticipant me) {

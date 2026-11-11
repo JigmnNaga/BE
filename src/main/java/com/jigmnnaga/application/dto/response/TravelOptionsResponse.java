@@ -12,6 +12,7 @@ public record TravelOptionsResponse(
         double destinationLongitude,
         LocalDateTime appointmentDateTime,
         LocalDateTime departureTime,
+        Boolean departureRequired,
         TravelMode myTravelMode,
         List<TravelOptionResponse> options
 ) {

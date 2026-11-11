@@ -1,7 +1,10 @@
+
 package com.jigmnnaga.application.usecase;
 
+import com.jigmnnaga.application.dto.request.DepartureLocationRegisterRequest;
 import com.jigmnnaga.application.dto.request.TransitRouteRequest;
 import com.jigmnnaga.application.dto.request.TravelModeSelectRequest;
+import com.jigmnnaga.application.dto.response.DepartureLocationResponse;
 import com.jigmnnaga.application.dto.response.TransitRouteResponse;
 import com.jigmnnaga.application.dto.response.TravelOptionsResponse;
 import com.jigmnnaga.application.dto.response.TravelOptionsResponse.TravelOptionResponse;
@@ -68,6 +71,23 @@ public class TravelOptionUseCase {
         me.selectTravelMode(request.mode(), request.durationMinutes(), now);
     }
 
+    @Transactional
+    public DepartureLocationResponse registerDepartureLocation(
+            Long memberId,
+            Long appointmentId,
+            DepartureLocationRegisterRequest request
+    ) {
+        AppointmentParticipant me = getTravelableParticipant(memberId, appointmentId);
+
+        me.registerDepartureLocation(
+                request.name(),
+                request.latitude(),
+                request.longitude()
+        );
+
+        return DepartureLocationResponse.from(me);
+    }
+
     private AppointmentParticipant getTravelableParticipant(Long memberId, Long appointmentId) {
         AppointmentParticipant participant = appointmentParticipantGetService
                 .findAcceptedByAppointmentIdAndMemberId(appointmentId, memberId)
@@ -83,7 +103,7 @@ public class TravelOptionUseCase {
     }
 
     private List<TransitRouteResponse.RouteResponse> findTransitRoutes(Appointment appointment, double latitude,
-                                                                      double longitude) {
+                                                                       double longitude) {
         try {
             return transitRouteGetUseCase.getRoutes(new TransitRouteRequest(longitude, latitude,
                     appointment.getDestinationLongitude(), appointment.getDestinationLatitude())).routes();
@@ -94,7 +114,7 @@ public class TravelOptionUseCase {
     }
 
     private Optional<TransitRouteResponse.RouteResponse> fastestRoute(List<TransitRouteResponse.RouteResponse> routes,
-                                                                     String type) {
+                                                                      String type) {
         return routes.stream()
                 .filter(route -> type.equals(route.type()))
                 .min(Comparator.comparingInt(TransitRouteResponse.RouteResponse::totalTime));

@@ -27,6 +27,7 @@ public enum ResponseMessage {
     NOTIFICATIONS_GET_SUCCESS("알림 목록을 조회했습니다."),
     TRAVEL_OPTIONS_GET_SUCCESS("이동수단 후보를 조회했습니다."),
     TRAVEL_MODE_SELECT_SUCCESS("이동수단을 선택했습니다."),
+    DEPARTURE_LOCATION_REGISTER_SUCCESS("출발 위치를 등록했습니다."),
     NOTIFICATION_SETTING_UPDATE_SUCCESS("약속방 알림 설정을 변경했습니다."),
     DEVICE_TOKEN_REGISTER_SUCCESS("기기 토큰을 등록했습니다."),
     DEVICE_TOKEN_DELETE_SUCCESS("기기 토큰을 삭제했습니다."),

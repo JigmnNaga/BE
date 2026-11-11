@@ -1,6 +1,8 @@
 package com.jigmnnaga.presentation;
 
+import com.jigmnnaga.application.dto.request.DepartureLocationRegisterRequest;
 import com.jigmnnaga.application.dto.request.TravelModeSelectRequest;
+import com.jigmnnaga.application.dto.response.DepartureLocationResponse;
 import com.jigmnnaga.application.dto.response.TravelOptionsResponse;
 import com.jigmnnaga.application.usecase.TravelOptionUseCase;
 import com.jigmnnaga.global.auth.LoginMember;
@@ -21,7 +23,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-@Tag(name = "Travel", description = "약속 당일 이동수단 선택 관련 API")
+@Tag(name = "Travel", description = "약속 당일 이동수단 및 출발 위치 관련 API")
 @RestController
 @RequestMapping("/api/v1/appointments/{appointmentId}/travel")
 @RequiredArgsConstructor
@@ -50,5 +52,18 @@ public class TravelController {
     ) {
         travelOptionUseCase.selectTravelMode(memberId, appointmentId, request);
         return CommonResponse.success(ResponseMessage.TRAVEL_MODE_SELECT_SUCCESS);
+    }
+
+    @Operation(summary = "출발 위치 등록", description = "확정된 약속의 참여자가 자신의 출발 위치 이름과 좌표를 등록합니다.")
+    @PutMapping("/departure-location")
+    public CommonResponse<DepartureLocationResponse> registerDepartureLocation(
+            @Parameter(hidden = true) @LoginMember Long memberId,
+            @PathVariable Long appointmentId,
+            @RequestBody @Valid DepartureLocationRegisterRequest request
+    ) {
+        DepartureLocationResponse response = travelOptionUseCase.registerDepartureLocation(
+                memberId, appointmentId, request
+        );
+        return CommonResponse.success(ResponseMessage.DEPARTURE_LOCATION_REGISTER_SUCCESS, response);
     }
 }

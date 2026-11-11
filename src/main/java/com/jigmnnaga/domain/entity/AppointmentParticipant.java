@@ -1,3 +1,4 @@
+
 package com.jigmnnaga.domain.entity;
 
 import jakarta.persistence.CascadeType;
@@ -14,6 +15,7 @@ import jakarta.persistence.ManyToOne;
 import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
+import java.math.BigDecimal; // 추가
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -86,6 +88,16 @@ public class AppointmentParticipant extends BaseEntity {
 
     private LocalDateTime travelModeSelectedAt;
 
+    // 추가: 출발 위치 정보
+    @Column(name = "departure_location_name", length = 255)
+    private String departureLocationName;
+
+    @Column(name = "departure_latitude", precision = 10, scale = 7)
+    private BigDecimal departureLatitude;
+
+    @Column(name = "departure_longitude", precision = 10, scale = 7)
+    private BigDecimal departureLongitude;
+
     @Builder
     private AppointmentParticipant(Member member, ParticipantRole role, ParticipationStatus status) {
         this.member = member;
@@ -115,6 +127,17 @@ public class AppointmentParticipant extends BaseEntity {
         this.travelMode = travelMode;
         this.travelDurationMinutes = travelDurationMinutes;
         this.travelModeSelectedAt = selectedAt;
+    }
+
+    // 추가: 출발 위치 등록
+    public void registerDepartureLocation(
+            String name,
+            BigDecimal latitude,
+            BigDecimal longitude
+    ) {
+        this.departureLocationName = name;
+        this.departureLatitude = latitude;
+        this.departureLongitude = longitude;
     }
 
     public void updateNotificationEnabled(boolean notificationEnabled) {

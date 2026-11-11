@@ -29,9 +29,23 @@ public class TravelOptionMapper {
                 .destinationLatitude(appointment.getDestinationLatitude())
                 .destinationLongitude(appointment.getDestinationLongitude())
                 .appointmentDateTime(appointment.getConfirmedDateTime())
+                .departureTime(calculateDepartureTime(appointment, me))
                 .myTravelMode(me.getTravelMode())
                 .options(options)
                 .build();
+    }
+
+    public LocalDateTime calculateDepartureTime(Appointment appointment, AppointmentParticipant me) {
+        LocalDateTime confirmedDateTime = appointment.getConfirmedDateTime();
+        if (confirmedDateTime == null) {
+            return null;
+        }
+        TravelMode travelMode = me.getTravelMode();
+        Integer durationMinutes = me.getTravelDurationMinutes();
+        if (travelMode == null || durationMinutes == null || durationMinutes <= 0) {
+            return null;
+        }
+        return confirmedDateTime.minusMinutes(durationMinutes);
     }
 
     public TravelOptionResponse fromTransitRoute(TravelMode mode, TransitRouteResponse.RouteResponse route,

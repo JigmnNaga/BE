@@ -31,6 +31,16 @@ public class TravelController {
 
     private final TravelOptionUseCase travelOptionUseCase;
 
+    @Operation(summary = "등록된 출발 위치 기준 예상 이동시간 조회", description = "미리 등록한 출발 위치에서 확정된 약속 장소까지 버스·지하철·택시별 예상 이동시간을 계산합니다. 출발 위치를 먼저 등록해야 합니다.")
+    @GetMapping("/estimated-time")
+    public CommonResponse<TravelOptionsResponse> getEstimatedTravelTime(
+            @Parameter(hidden = true) @LoginMember Long memberId,
+            @PathVariable Long appointmentId
+    ) {
+        TravelOptionsResponse response = travelOptionUseCase.getEstimatedTravelTime(memberId, appointmentId);
+        return CommonResponse.success(ResponseMessage.ESTIMATED_TRAVEL_TIME_GET_SUCCESS, response);
+    }
+
     @Operation(summary = "이동수단 후보 조회", description = "현재 위치에서 확정된 약속 장소까지 버스·지하철·택시별 대표 경로(가장 빠른 경로)의 소요 시간, 구간 요약, 지도 경로, 지금 출발 시 도착 예정 시각을 조회합니다. 일부 수단의 경로를 조회하지 못하면 해당 수단만 제외됩니다. 요금은 제공하지 않습니다.")
     @GetMapping("/options")
     public CommonResponse<TravelOptionsResponse> getTravelOptions(

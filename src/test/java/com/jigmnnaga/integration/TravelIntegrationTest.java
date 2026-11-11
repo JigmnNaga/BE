@@ -133,6 +133,98 @@ class TravelIntegrationTest extends IntegrationTestSupport {
     }
 
     @Test
+    @DisplayName("등록된 출발 위치 기준으로 예상 이동시간을 조회한다")
+    void estimatedTravelTime() throws Exception {
+        Member host = createMember("태양");
+        CreatedAppointment appointment = confirmedAppointment(host);
+        perform(put(appointmentPath(appointment) + "/travel/departure-location"), host,
+                Map.of("name", "우리집", "latitude", latitude, "longitude", longitude));
+        givenTransitRoutes(
+                transitRoute("BUS", 1190, List.of(new String[]{"WALKING", "290"}, new String[]{"BUS", "480", "341"})));
+        givenTaxiRoute(900);
+
+        JsonNode data = data(perform(
+                get(appointmentPath(appointment) + "/travel/estimated-time"), host)
+                .andExpect(status().isOk()));
+
+        assertThat(data.get("destinationName").asString()).isEqualTo("강남역 카페거리");
+        JsonNode options = data.get("options");
+        assertThat(options).hasSize(2);
+        assertThat(options.get(0).get("mode").asString()).isEqualTo("BUS");
+        assertThat(options.get(0).get("durationMinutes").asInt()).isEqualTo(20);
+        assertThat(options.get(1).get("mode").asString()).isEqualTo("TAXI");
+    }
+
+    @Test
+    @DisplayName("출발 위치를 수정하면 변경된 좌표로 예상 이동시간이 계산된다")
+    void estimatedTravelTimeAfterUpdateDepartureLocation() throws Exception {
+        Member host = createMember("태양");
+        CreatedAppointment appointment = confirmedAppointment(host);
+        perform(put(appointmentPath(appointment) + "/travel/departure-location"), host,
+                Map.of("name", "우리집", "latitude", latitude, "longitude", longitude));
+
+        double updatedLatitude = 37.5665;
+        double updatedLongitude = 126.9780;
+        perform(put(appointmentPath(appointment) + "/travel/departure-location"), host,
+                Map.of("name", "서울시청", "latitude", updatedLatitude, "longitude", updatedLongitude));
+
+        givenTransitRoutes(
+                transitRoute("SUBWAY", 1800, List.<String[]>of(new String[]{"SUBWAY", "1500", "2호선"})));
+        givenTaxiRoute(1200);
+
+        JsonNode data = data(perform(
+                get(appointmentPath(appointment) + "/travel/estimated-time"), host)
+                .andExpect(status().isOk()));
+
+        assertThat(data.get("options").get(0).get("mode").asString()).isEqualTo("SUBWAY");
+        assertThat(data.get("options").get(0).get("durationMinutes").asInt()).isEqualTo(30);
+    }
+
+    @Test
+    @DisplayName("출발 위치가 미등록 상태에서 예상 이동시간을 조회하면 400을 반환한다")
+    void estimatedTravelTimeWithoutDepartureLocation() throws Exception {
+        Member host = createMember("태양");
+        CreatedAppointment appointment = confirmedAppointment(host);
+
+        perform(get(appointmentPath(appointment) + "/travel/estimated-time"), host)
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @DisplayName("등록된 출발 위치 기준 이동시간 조회 시 대중교통이 실패해도 택시는 반환한다")
+    void estimatedTravelTimePartialWhenTransitFails() throws Exception {
+        Member host = createMember("태양");
+        CreatedAppointment appointment = confirmedAppointment(host);
+        perform(put(appointmentPath(appointment) + "/travel/departure-location"), host,
+                Map.of("name", "우리집", "latitude", latitude, "longitude", longitude));
+        when(kakaoTransitApiClient.getRoutes(anyDouble(), anyDouble(), anyDouble(), anyDouble()))
+                .thenThrow(new com.jigmnnaga.application.exception.BusinessException(
+                        com.jigmnnaga.application.exception.ErrorCode.TRANSIT_ROUTE_FAILED));
+        givenTaxiRoute(600);
+
+        perform(get(appointmentPath(appointment) + "/travel/estimated-time"), host)
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.options.length()").value(1))
+                .andExpect(jsonPath("$.data.options[0].mode").value("TAXI"));
+    }
+
+    @Test
+    @DisplayName("기존 GET /travel/options는 현재 위치 파라미터 기반으로 동일하게 동작한다 (회귀)")
+    void travelOptionsRegression() throws Exception {
+        Member host = createMember("태양");
+        CreatedAppointment appointment = confirmedAppointment(host);
+        givenTransitRoutes(
+                transitRoute("BUS", 1190, List.<String[]>of(new String[]{"BUS", "1190", "341"})));
+        givenTaxiRoute(900);
+
+        JsonNode data = data(getOptions(appointment, host).andExpect(status().isOk()));
+
+        assertThat(data.get("destinationName").asString()).isEqualTo("강남역 카페거리");
+        assertThat(data.get("options")).hasSize(2);
+        assertThat(data.get("options").get(0).get("mode").asString()).isEqualTo("BUS");
+    }
+
+    @Test
     @DisplayName("이동수단을 선택하면 내 이동수단과 멤버 이동수단에 반영되고, 참여자가 아니면 선택할 수 없다")
     void selectTravelMode() throws Exception {
         Member host = createMember("태양");

@@ -17,6 +17,7 @@ import com.jigmnnaga.domain.entity.TravelMode;
 import com.jigmnnaga.domain.service.AppointmentParticipantGetService;
 import com.jigmnnaga.global.client.kakao.KakaoMobilityApiClient;
 import com.jigmnnaga.global.util.TimeZones;
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -44,6 +45,21 @@ public class TravelOptionUseCase {
     @Transactional(readOnly = true)
     public TravelOptionsResponse getTravelOptions(Long memberId, Long appointmentId, double latitude, double longitude) {
         AppointmentParticipant me = getTravelableParticipant(memberId, appointmentId);
+        return calculateTravelOptions(me, latitude, longitude);
+    }
+
+    @Transactional(readOnly = true)
+    public TravelOptionsResponse getEstimatedTravelTime(Long memberId, Long appointmentId) {
+        AppointmentParticipant me = getTravelableParticipant(memberId, appointmentId);
+        BigDecimal depLatitude = me.getDepartureLatitude();
+        BigDecimal depLongitude = me.getDepartureLongitude();
+        if (depLatitude == null || depLongitude == null) {
+            throw new BusinessException(ErrorCode.DEPARTURE_LOCATION_NOT_REGISTERED);
+        }
+        return calculateTravelOptions(me, depLatitude.doubleValue(), depLongitude.doubleValue());
+    }
+
+    private TravelOptionsResponse calculateTravelOptions(AppointmentParticipant me, double latitude, double longitude) {
         Appointment appointment = me.getAppointment();
         LocalDateTime now = LocalDateTime.now(TimeZones.SEOUL);
 

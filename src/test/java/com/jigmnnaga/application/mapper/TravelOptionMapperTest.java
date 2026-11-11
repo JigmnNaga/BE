@@ -38,8 +38,9 @@ class TravelOptionMapperTest {
     void calculateDepartureTime() {
         Appointment appointment = appointment(LocalDateTime.of(2026, 11, 15, 15, 0));
         AppointmentParticipant me = me(TravelMode.BUS, 45);
+        LocalDateTime now = LocalDateTime.of(2026, 11, 15, 12, 0);
 
-        TravelOptionsResponse response = mapper.toTravelOptionsResponse(appointment, me, List.of());
+        TravelOptionsResponse response = mapper.toTravelOptionsResponse(appointment, me, List.of(), now);
 
         assertThat(response.departureTime()).isEqualTo(LocalDateTime.of(2026, 11, 15, 14, 15));
     }
@@ -49,8 +50,9 @@ class TravelOptionMapperTest {
     void calculateDepartureTimeAcrossMidnight() {
         Appointment appointment = appointment(LocalDateTime.of(2026, 11, 15, 0, 30));
         AppointmentParticipant me = me(TravelMode.TAXI, 60);
+        LocalDateTime now = LocalDateTime.of(2026, 11, 14, 22, 0);
 
-        TravelOptionsResponse response = mapper.toTravelOptionsResponse(appointment, me, List.of());
+        TravelOptionsResponse response = mapper.toTravelOptionsResponse(appointment, me, List.of(), now);
 
         assertThat(response.departureTime()).isEqualTo(LocalDateTime.of(2026, 11, 14, 23, 30));
     }
@@ -60,8 +62,9 @@ class TravelOptionMapperTest {
     void departureTimeNullWhenTravelModeNotSelected() {
         Appointment appointment = appointment(LocalDateTime.of(2026, 11, 15, 15, 0));
         AppointmentParticipant me = me(null, null);
+        LocalDateTime now = LocalDateTime.of(2026, 11, 15, 12, 0);
 
-        TravelOptionsResponse response = mapper.toTravelOptionsResponse(appointment, me, List.of());
+        TravelOptionsResponse response = mapper.toTravelOptionsResponse(appointment, me, List.of(), now);
 
         assertThat(response.departureTime()).isNull();
     }
@@ -71,8 +74,9 @@ class TravelOptionMapperTest {
     void departureTimeNullWhenDurationNotSet() {
         Appointment appointment = appointment(LocalDateTime.of(2026, 11, 15, 15, 0));
         AppointmentParticipant me = me(TravelMode.BUS, null);
+        LocalDateTime now = LocalDateTime.of(2026, 11, 15, 12, 0);
 
-        TravelOptionsResponse response = mapper.toTravelOptionsResponse(appointment, me, List.of());
+        TravelOptionsResponse response = mapper.toTravelOptionsResponse(appointment, me, List.of(), now);
 
         assertThat(response.departureTime()).isNull();
     }
@@ -82,8 +86,9 @@ class TravelOptionMapperTest {
     void departureTimeNullWhenDurationIsZero() {
         Appointment appointment = appointment(LocalDateTime.of(2026, 11, 15, 15, 0));
         AppointmentParticipant me = me(TravelMode.BUS, 0);
+        LocalDateTime now = LocalDateTime.of(2026, 11, 15, 12, 0);
 
-        TravelOptionsResponse response = mapper.toTravelOptionsResponse(appointment, me, List.of());
+        TravelOptionsResponse response = mapper.toTravelOptionsResponse(appointment, me, List.of(), now);
 
         assertThat(response.departureTime()).isNull();
     }
@@ -93,8 +98,9 @@ class TravelOptionMapperTest {
     void departureTimeNullWhenAppointmentDateTimeNotConfirmed() {
         Appointment appointment = appointment(null);
         AppointmentParticipant me = me(TravelMode.BUS, 45);
+        LocalDateTime now = LocalDateTime.of(2026, 11, 15, 12, 0);
 
-        TravelOptionsResponse response = mapper.toTravelOptionsResponse(appointment, me, List.of());
+        TravelOptionsResponse response = mapper.toTravelOptionsResponse(appointment, me, List.of(), now);
 
         assertThat(response.departureTime()).isNull();
     }
@@ -105,8 +111,9 @@ class TravelOptionMapperTest {
         LocalDateTime appointmentDateTime = LocalDateTime.of(2026, 11, 15, 15, 0);
         Appointment appointment = appointment(appointmentDateTime);
         AppointmentParticipant me = me(TravelMode.TAXI, 30);
+        LocalDateTime now = LocalDateTime.of(2026, 11, 15, 12, 0);
 
-        TravelOptionsResponse response = mapper.toTravelOptionsResponse(appointment, me, List.of());
+        TravelOptionsResponse response = mapper.toTravelOptionsResponse(appointment, me, List.of(), now);
 
         assertThat(response.destinationName()).isEqualTo("강남역");
         assertThat(response.destinationLatitude()).isEqualTo(37.4979);
@@ -114,5 +121,53 @@ class TravelOptionMapperTest {
         assertThat(response.appointmentDateTime()).isEqualTo(appointmentDateTime);
         assertThat(response.myTravelMode()).isEqualTo(TravelMode.TAXI);
         assertThat(response.options()).isEmpty();
+    }
+
+    @Test
+    @DisplayName("현재 시각이 출발 예정 시각 이후이면 출발 필요 여부는 true이다")
+    void departureRequiredTrueWhenCurrentTimeIsAfterDepartureTime() {
+        Appointment appointment = appointment(LocalDateTime.of(2026, 11, 15, 15, 0));
+        AppointmentParticipant me = me(TravelMode.BUS, 45);
+        LocalDateTime now = LocalDateTime.of(2026, 11, 15, 14, 30);
+
+        TravelOptionsResponse response = mapper.toTravelOptionsResponse(appointment, me, List.of(), now);
+
+        assertThat(response.departureRequired()).isTrue();
+    }
+
+    @Test
+    @DisplayName("현재 시각이 출발 예정 시각과 정확히 같으면 출발 필요 여부는 true이다")
+    void departureRequiredTrueWhenCurrentTimeEqualsExactlyDepartureTime() {
+        Appointment appointment = appointment(LocalDateTime.of(2026, 11, 15, 15, 0));
+        AppointmentParticipant me = me(TravelMode.BUS, 45);
+        LocalDateTime now = LocalDateTime.of(2026, 11, 15, 14, 15);
+
+        TravelOptionsResponse response = mapper.toTravelOptionsResponse(appointment, me, List.of(), now);
+
+        assertThat(response.departureRequired()).isTrue();
+    }
+
+    @Test
+    @DisplayName("현재 시각이 출발 예정 시각 이전이면 출발 필요 여부는 false이다")
+    void departureRequiredFalseWhenCurrentTimeIsBeforeDepartureTime() {
+        Appointment appointment = appointment(LocalDateTime.of(2026, 11, 15, 15, 0));
+        AppointmentParticipant me = me(TravelMode.BUS, 45);
+        LocalDateTime now = LocalDateTime.of(2026, 11, 15, 14, 0);
+
+        TravelOptionsResponse response = mapper.toTravelOptionsResponse(appointment, me, List.of(), now);
+
+        assertThat(response.departureRequired()).isFalse();
+    }
+
+    @Test
+    @DisplayName("출발 예정 시각을 계산할 수 없으면 출발 필요 여부는 null이다")
+    void departureRequiredNullWhenDepartureTimeCannotBeCalculated() {
+        Appointment appointment = appointment(LocalDateTime.of(2026, 11, 15, 15, 0));
+        AppointmentParticipant me = me(null, null);
+        LocalDateTime now = LocalDateTime.of(2026, 11, 15, 14, 0);
+
+        TravelOptionsResponse response = mapper.toTravelOptionsResponse(appointment, me, List.of(), now);
+
+        assertThat(response.departureRequired()).isNull();
     }
 }

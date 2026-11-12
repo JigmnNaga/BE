@@ -7,8 +7,10 @@ import com.jigmnnaga.application.exception.BusinessException;
 import com.jigmnnaga.domain.entity.Appointment;
 import com.jigmnnaga.domain.entity.TravelMode;
 import com.jigmnnaga.global.cache.EtaCache;
+import com.jigmnnaga.global.cache.LatenessCache;
 import com.jigmnnaga.global.client.kakao.KakaoMobilityApiClient;
 import java.time.LocalDateTime;
+import java.time.temporal.ChronoUnit;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
@@ -33,6 +35,7 @@ public class EtaCalculateUseCase {
     private final TransitRouteGetUseCase transitRouteGetUseCase;
     private final KakaoMobilityApiClient kakaoMobilityApiClient;
     private final EtaCache etaCache;
+    private final LatenessCache latenessCache;
     private final SimpMessagingTemplate messagingTemplate;
 
     /**
@@ -68,10 +71,22 @@ public class EtaCalculateUseCase {
                 return;
             }
 
-            // 4. ACCEPTED 참여자 전체에게 브로드캐스트
+            // 4. 지각 예측 계산 및 저장
+            Integer expectedLatenessMinutes = null;
+            Boolean isExpectedLate = null;
+            LocalDateTime confirmedDateTime = appointment.getConfirmedDateTime();
+            if (confirmedDateTime != null) {
+                int latenessMinutes = calculateLatenessMinutes(eta, confirmedDateTime);
+                boolean late = latenessMinutes > 0;
+                latenessCache.putIfNewer(appointmentId, memberId, latenessMinutes, late, now);
+                expectedLatenessMinutes = latenessMinutes;
+                isExpectedLate = late;
+            }
+
+            // 5. ACCEPTED 참여자 전체에게 브로드캐스트
             messagingTemplate.convertAndSend(
                     ETA_TOPIC_PREFIX + appointmentId + ETA_TOPIC_SUFFIX,
-                    new EtaBroadcastResponse(memberId, eta, minutes, now));
+                    new EtaBroadcastResponse(memberId, eta, minutes, now, expectedLatenessMinutes, isExpectedLate));
         } catch (Exception e) {
             log.warn("ETA 계산 중 예기치 않은 오류 발생 memberId={}, appointmentId={}: {}",
                     memberId, appointmentId, e.getMessage());
@@ -126,6 +141,14 @@ public class EtaCalculateUseCase {
         return routes.stream()
                 .filter(r -> type.equals(r.type()))
                 .min(Comparator.comparingInt(TransitRouteResponse.RouteResponse::totalTime));
+    }
+
+    static int calculateLatenessMinutes(LocalDateTime estimatedArrivalTime, LocalDateTime confirmedDateTime) {
+        long latenessSeconds = ChronoUnit.SECONDS.between(confirmedDateTime, estimatedArrivalTime);
+        if (latenessSeconds <= 0) {
+            return 0;
+        }
+        return (int) ((latenessSeconds + SECONDS_PER_MINUTE - 1) / SECONDS_PER_MINUTE);
     }
 
     private static int toMinutes(int seconds) {

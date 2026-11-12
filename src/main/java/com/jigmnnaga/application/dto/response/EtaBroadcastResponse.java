@@ -6,6 +6,8 @@ public record EtaBroadcastResponse(
         Long memberId,
         LocalDateTime estimatedArrivalTime,
         Integer remainingMinutes,
-        LocalDateTime calculatedAt
+        LocalDateTime calculatedAt,
+        Integer expectedLatenessMinutes,
+        Boolean isExpectedLate
 ) {
 }

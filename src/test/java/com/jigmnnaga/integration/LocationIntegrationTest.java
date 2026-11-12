@@ -10,19 +10,26 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.jigmnnaga.application.dto.response.kakao.KakaoCarRouteResponse;
+import com.jigmnnaga.domain.entity.Appointment;
 import com.jigmnnaga.domain.entity.Member;
+import com.jigmnnaga.domain.repository.AppointmentRepository;
 import com.jigmnnaga.global.cache.EtaCache;
+import com.jigmnnaga.global.cache.LatenessCache;
 import com.jigmnnaga.global.client.kakao.KakaoMobilityApiClient;
 import com.jigmnnaga.global.client.kakao.KakaoTransitApiClient;
+import com.jigmnnaga.global.util.TimeZones;
 import com.jigmnnaga.support.IntegrationTestSupport;
 import java.lang.reflect.Type;
 import java.time.LocalDateTime;
+import java.time.LocalDate;
+import java.time.LocalTime;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -55,7 +62,30 @@ class LocationIntegrationTest extends IntegrationTestSupport {
     private EtaCache etaCache;
 
     @Autowired
+    private LatenessCache latenessCache;
+
+    @Autowired
+    private AppointmentRepository appointmentRepository;
+
+    @Autowired
     private RedisTemplate<String, String> redisTemplate;
+
+    @BeforeEach
+    void clearRedisState() {
+        // 이전 테스트 실행에서 남은 Redis 키(ETA 쓰로틀, ETA 결과, 지각, 위치)를 정리합니다.
+        // ETA 쓰로틀 TTL(30초) 이내 재실행 시 키 충돌을 방지합니다.
+        deleteKeysByPattern("eta:throttle:*");
+        deleteKeysByPattern("eta:result:*");
+        deleteKeysByPattern("lateness:*");
+        deleteKeysByPattern("location:appointment:*");
+    }
+
+    private void deleteKeysByPattern(String pattern) {
+        java.util.Set<String> keys = redisTemplate.keys(pattern);
+        if (keys != null && !keys.isEmpty()) {
+            redisTemplate.delete(keys);
+        }
+    }
 
     // ── STOMP 헬퍼 ───────────────────────────────────────────────────────────
 
@@ -452,5 +482,117 @@ class LocationIntegrationTest extends IntegrationTestSupport {
         Map<?, ?> etaMsg = etaQueue.poll(3, TimeUnit.SECONDS);
         assertThat(etaMsg).isNotNull();
         assertThat(etaMsg.containsKey("latitude")).isFalse();
+    }
+
+    // ── 지각 감지 테스트 ─────────────────────────────────────────────────────
+
+    @Test
+    @DisplayName("약속 10일 후 ETA 계산 시 지각 없음(0, false)으로 브로드캐스트된다")
+    void etaBroadcastIncludesLatenessFieldsWhenOnTime() throws Exception {
+        Member host = createMember("태양");
+        CreatedAppointment appointment = confirmedAppointment(host); // 약속 10일 후
+        depart(appointment, host);
+
+        // ETA 15분 → 약속시간(10일 후)보다 훨씬 일찍 도착
+        when(kakaoMobilityApiClient.getCarRoute(anyDouble(), anyDouble(), anyDouble(), anyDouble()))
+                .thenReturn(Optional.of(taxiRoute(900)));
+
+        StompSession session = connect(host, new LinkedBlockingQueue<>());
+        BlockingQueue<Map<?, ?>> etaQueue = subscribe(session,
+                "/sub/appointments/" + appointment.id() + "/eta");
+
+        session.send("/pub/appointments/" + appointment.id() + "/location",
+                Map.of("latitude", 37.4979, "longitude", 127.0276));
+
+        Map<?, ?> received = etaQueue.poll(3, TimeUnit.SECONDS);
+        assertThat(received).isNotNull();
+        assertThat(((Number) received.get("expectedLatenessMinutes")).intValue()).isEqualTo(0);
+        assertThat(received.get("isExpectedLate")).isEqualTo(false);
+    }
+
+    @Test
+    @DisplayName("약속 시간을 과거로 설정 시 ETA가 약속 시간 초과하여 지각으로 감지된다")
+    void etaBroadcastIndicatesLatenessWhenEtaExceedsAppointmentTime() throws Exception {
+        Member host = createMember("태양");
+        CreatedAppointment appointment = confirmedAppointment(host);
+        depart(appointment, host);
+
+        // 약속 시간을 과거 10분 전으로 변경 (지각 상황 시뮬레이션)
+        LocalDateTime pastAppointment = LocalDateTime.now(TimeZones.SEOUL).minusMinutes(10);
+        transactionTemplate.execute(status -> {
+            Appointment appt = appointmentRepository.findById(appointment.id()).orElseThrow();
+            appt.confirmDateTime(pastAppointment.toLocalDate(), pastAppointment.toLocalTime().withSecond(0).withNano(0));
+            return null;
+        });
+
+        // ETA 1800초(30분) → 약속시간(과거 10분 전) 기준으로 ~40분 지각
+        when(kakaoMobilityApiClient.getCarRoute(anyDouble(), anyDouble(), anyDouble(), anyDouble()))
+                .thenReturn(Optional.of(taxiRoute(1800)));
+
+        StompSession session = connect(host, new LinkedBlockingQueue<>());
+        BlockingQueue<Map<?, ?>> etaQueue = subscribe(session,
+                "/sub/appointments/" + appointment.id() + "/eta");
+
+        session.send("/pub/appointments/" + appointment.id() + "/location",
+                Map.of("latitude", 37.4979, "longitude", 127.0276));
+
+        Map<?, ?> received = etaQueue.poll(3, TimeUnit.SECONDS);
+        assertThat(received).isNotNull();
+        assertThat(received.get("isExpectedLate")).isEqualTo(true);
+        assertThat(((Number) received.get("expectedLatenessMinutes")).intValue()).isGreaterThan(0);
+    }
+
+    @Test
+    @DisplayName("ETA 계산 후 LatenessCache에 지각 정보가 저장된다")
+    void latenessInfoIsSavedInRedisAfterEtaCalculation() throws Exception {
+        Member host = createMember("태양");
+        CreatedAppointment appointment = confirmedAppointment(host); // 약속 10일 후
+        depart(appointment, host);
+
+        when(kakaoMobilityApiClient.getCarRoute(anyDouble(), anyDouble(), anyDouble(), anyDouble()))
+                .thenReturn(Optional.of(taxiRoute(900)));
+
+        StompSession session = connect(host, new LinkedBlockingQueue<>());
+        BlockingQueue<Map<?, ?>> etaQueue = subscribe(session,
+                "/sub/appointments/" + appointment.id() + "/eta");
+
+        session.send("/pub/appointments/" + appointment.id() + "/location",
+                Map.of("latitude", 37.4979, "longitude", 127.0276));
+
+        // ETA 브로드캐스트를 기다려 ETA 계산 완료를 확인
+        Map<?, ?> received = etaQueue.poll(3, TimeUnit.SECONDS);
+        assertThat(received).isNotNull();
+
+        java.util.Optional<LatenessCache.LatenessInfo> info = latenessCache.get(appointment.id(), host.getId());
+        assertThat(info).isPresent();
+        assertThat(info.get().isExpectedLate()).isFalse(); // 약속 10일 후이므로 지각 아님
+    }
+
+    @Test
+    @DisplayName("지각 감지 추가 후 기존 ETA 브로드캐스트 필드들이 여전히 올바르다 (회귀)")
+    void existingEtaFeaturesAreUnaffectedByLatenessDetection() throws Exception {
+        Member host = createMember("태양");
+        Member member = createMember("태희");
+        CreatedAppointment appointment = confirmedAppointment(host);
+        accept(appointment, member);
+        depart(appointment, host);
+
+        when(kakaoMobilityApiClient.getCarRoute(anyDouble(), anyDouble(), anyDouble(), anyDouble()))
+                .thenReturn(Optional.of(taxiRoute(900)));
+
+        StompSession hostSession = connect(host, new LinkedBlockingQueue<>());
+        StompSession memberSession = connect(member, new LinkedBlockingQueue<>());
+        BlockingQueue<Map<?, ?>> etaQueue = subscribe(memberSession,
+                "/sub/appointments/" + appointment.id() + "/eta");
+
+        hostSession.send("/pub/appointments/" + appointment.id() + "/location",
+                Map.of("latitude", 37.4979, "longitude", 127.0276));
+
+        Map<?, ?> received = etaQueue.poll(3, TimeUnit.SECONDS);
+        assertThat(received).isNotNull();
+        assertThat(received.get("remainingMinutes")).isEqualTo(15); // 900초 = 15분
+        assertThat(received.get("estimatedArrivalTime")).isNotNull();
+        assertThat(received.get("calculatedAt")).isNotNull();
+        assertThat(((Number) received.get("memberId")).longValue()).isEqualTo(host.getId());
     }
 }

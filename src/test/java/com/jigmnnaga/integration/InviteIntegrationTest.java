@@ -29,7 +29,15 @@ class InviteIntegrationTest extends IntegrationTestSupport {
                 .andExpect(jsonPath("$.data.respondedCount").value(2))
                 .andExpect(jsonPath("$.data.joinedCount").value(2))
                 .andExpect(jsonPath("$.data.myStatus").value("PENDING"))
+                .andExpect(jsonPath("$.data.myRole").value("MEMBER"))
                 .andExpect(jsonPath("$.data.participants[0].role").value("HOST"));
+
+        perform(get("/api/v1/invites/" + appointment.inviteCode()), host)
+                .andExpect(jsonPath("$.data.myStatus").value("ACCEPTED"))
+                .andExpect(jsonPath("$.data.myRole").value("HOST"));
+        perform(get("/api/v1/invites/" + appointment.inviteCode()), accepted)
+                .andExpect(jsonPath("$.data.myStatus").value("ACCEPTED"))
+                .andExpect(jsonPath("$.data.myRole").value("MEMBER"));
     }
 
     @Test

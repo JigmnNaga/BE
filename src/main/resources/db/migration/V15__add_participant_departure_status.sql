@@ -1,0 +1,4 @@
+-- V15: 참여자별 출발 상태 추가 (BEFORE_DEPARTURE, DEPARTED, ARRIVED)
+
+ALTER TABLE appointment_participant
+    ADD COLUMN departure_status VARCHAR(30) NOT NULL DEFAULT 'BEFORE_DEPARTURE';

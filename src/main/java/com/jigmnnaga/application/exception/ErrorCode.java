@@ -68,7 +68,10 @@ public enum ErrorCode {
     INVALID_SLOT_MINUTES(HttpStatus.BAD_REQUEST, "시간표 슬롯 단위는 30분 또는 60분만 가능합니다."),
     INVALID_SUBSCRIPTION_DESTINATION(HttpStatus.BAD_REQUEST, "구독할 수 없는 채널입니다."),
     INVALID_CHAT_MESSAGE(HttpStatus.BAD_REQUEST, "메시지는 1자 이상 1000자 이하로 입력해주세요."),
-    INVALID_PREFERRED_LOCATION(HttpStatus.BAD_REQUEST, "약속의 후보 장소가 아닙니다.");
+    INVALID_PREFERRED_LOCATION(HttpStatus.BAD_REQUEST, "약속의 후보 장소가 아닙니다."),
+    ALREADY_DEPARTED(HttpStatus.CONFLICT, "이미 출발한 상태입니다."),
+    ALREADY_ARRIVED(HttpStatus.CONFLICT, "이미 도착한 상태입니다."),
+    NOT_YET_DEPARTED(HttpStatus.BAD_REQUEST, "아직 출발하지 않았습니다.");
 
     private final HttpStatus httpStatus;
     private final String message;

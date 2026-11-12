@@ -2,6 +2,7 @@ package com.jigmnnaga.application.usecase;
 
 import com.jigmnnaga.application.event.AppointmentEventFactory;
 import com.jigmnnaga.application.event.AppointmentEventPublisher;
+import com.jigmnnaga.application.event.ProfileImageDiscardedEvent;
 import com.jigmnnaga.application.exception.BusinessException;
 import com.jigmnnaga.application.exception.ErrorCode;
 import com.jigmnnaga.domain.entity.Appointment;
@@ -19,6 +20,7 @@ import com.jigmnnaga.global.util.TimeZones;
 import java.time.LocalDateTime;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -37,6 +39,7 @@ public class MemberWithdrawUseCase {
     private final DeviceTokenDeleteService deviceTokenDeleteService;
     private final AppointmentEventPublisher appointmentEventPublisher;
     private final AppointmentEventFactory appointmentEventFactory;
+    private final ApplicationEventPublisher applicationEventPublisher;
 
     @Transactional
     public void withdraw(Long memberId) {
@@ -52,6 +55,9 @@ public class MemberWithdrawUseCase {
         refreshTokenDeleteService.deleteByMemberId(memberId);
         notificationDeleteService.deleteAllByMemberId(memberId);
         deviceTokenDeleteService.deleteAllByMemberId(memberId);
+        if (member.getProfileImageKey() != null) {
+            applicationEventPublisher.publishEvent(new ProfileImageDiscardedEvent(member.getProfileImageKey()));
+        }
         member.withdraw(now);
     }
 

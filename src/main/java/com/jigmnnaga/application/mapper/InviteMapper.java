@@ -11,10 +11,14 @@ import com.jigmnnaga.domain.entity.ParticipationStatus;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
 @Component
+@RequiredArgsConstructor
 public class InviteMapper {
+
+    private final ProfileImageUrlResolver profileImageUrlResolver;
 
     public InviteInfoResponse toInviteInfoResponse(Appointment appointment, List<AppointmentParticipant> participants,
                                                    Long memberId, boolean expired) {
@@ -79,7 +83,7 @@ public class InviteMapper {
         return ParticipantResponse.builder()
                 .memberId(member.getId())
                 .nickname(member.getNickname())
-                .profileImageUrl(member.getProfileImageUrl())
+                .profileImageUrl(profileImageUrlResolver.resolve(member))
                 .role(participant.getRole())
                 .status(participant.getStatus())
                 .build();

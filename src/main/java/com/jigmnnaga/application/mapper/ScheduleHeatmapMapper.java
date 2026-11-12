@@ -15,13 +15,17 @@ import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
 @Component
+@RequiredArgsConstructor
 public class ScheduleHeatmapMapper {
 
     private static final int MINUTES_PER_HOUR = 60;
     private static final int MAX_TOP_CANDIDATES = 5;
+
+    private final ProfileImageUrlResolver profileImageUrlResolver;
 
     public ScheduleHeatmapResponse toHeatmapResponse(Appointment appointment, List<AppointmentParticipant> participants,
                                                      int slotMinutes) {
@@ -138,7 +142,7 @@ public class ScheduleHeatmapMapper {
                 .map(member -> HeatmapMemberResponse.builder()
                         .memberId(member.getId())
                         .nickname(member.getNickname())
-                        .profileImageUrl(member.getProfileImageUrl())
+                        .profileImageUrl(profileImageUrlResolver.resolve(member))
                         .build())
                 .toList();
     }

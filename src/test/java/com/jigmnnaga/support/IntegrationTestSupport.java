@@ -8,6 +8,7 @@ import com.jigmnnaga.domain.entity.Role;
 import com.jigmnnaga.domain.repository.MemberRepository;
 import com.jigmnnaga.global.client.fcm.FcmClient;
 import com.jigmnnaga.global.client.kakao.KakaoApiClient;
+import com.jigmnnaga.global.client.s3.S3FileClient;
 import com.jigmnnaga.global.jwt.JwtProvider;
 import java.time.LocalDate;
 import java.util.ArrayList;
@@ -50,6 +51,9 @@ public abstract class IntegrationTestSupport {
 
     @MockitoBean
     protected KakaoApiClient kakaoApiClient;
+
+    @MockitoBean
+    protected S3FileClient s3FileClient;
 
     protected final JsonMapper jsonMapper = JsonMapper.builder().build();
 

@@ -12,10 +12,14 @@ import com.jigmnnaga.domain.entity.ParticipantAvailability;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
 @Component
+@RequiredArgsConstructor
 public class ScheduleMapper {
+
+    private final ProfileImageUrlResolver profileImageUrlResolver;
 
     public List<ParticipantAvailability> toAvailabilities(ScheduleSubmitRequest request) {
         return request.availabilities().stream()
@@ -68,7 +72,7 @@ public class ScheduleMapper {
         return ScheduleStatusResponse.MemberScheduleResponse.builder()
                 .memberId(member.getId())
                 .nickname(member.getNickname())
-                .profileImageUrl(member.getProfileImageUrl())
+                .profileImageUrl(profileImageUrlResolver.resolve(member))
                 .submitted(participant.hasSubmittedSchedule())
                 .availabilities(toAvailabilityResponses(participant))
                 .preferredLocationId(getPreferredLocationId(participant))
@@ -91,7 +95,7 @@ public class ScheduleMapper {
                         .map(voter -> ScheduleStatusResponse.VoterResponse.builder()
                                 .memberId(voter.getId())
                                 .nickname(voter.getNickname())
-                                .profileImageUrl(voter.getProfileImageUrl())
+                                .profileImageUrl(profileImageUrlResolver.resolve(voter))
                                 .build())
                         .toList())
                 .build();

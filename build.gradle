@@ -145,6 +145,10 @@ dependencies {
 	// 테스트용 Lombok
 	testCompileOnly 'org.projectlombok:lombok'
 	testAnnotationProcessor 'org.projectlombok:lombok'
+
+	// AWS S3
+	implementation platform('software.amazon.awssdk:bom:2.57.13')
+	implementation 'software.amazon.awssdk:s3'
 }
 
 tasks.named('test') {

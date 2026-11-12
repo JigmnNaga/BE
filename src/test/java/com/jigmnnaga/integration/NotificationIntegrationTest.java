@@ -42,8 +42,10 @@ class NotificationIntegrationTest extends IntegrationTestSupport {
 
         perform(post(appointmentPath(appointment) + "/reminders"), host)
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.type").value("SCHEDULE_INPUT_REQUESTED"))
-                .andExpect(jsonPath("$.data.sentCount").value(1));
+                .andExpect(jsonPath("$.data.sentCount").value(1))
+                .andExpect(jsonPath("$.data.reminders.length()").value(1))
+                .andExpect(jsonPath("$.data.reminders[0].type").value("SCHEDULE_INPUT_REQUESTED"))
+                .andExpect(jsonPath("$.data.reminders[0].sentCount").value(1));
 
         perform(get("/api/v1/notifications/unread-count"), submitted).andExpect(jsonPath("$.data.count").value(0));
         JsonNode inbox = data(perform(get("/api/v1/notifications"), pending));
@@ -53,6 +55,50 @@ class NotificationIntegrationTest extends IntegrationTestSupport {
         perform(patch("/api/v1/notifications/" + notificationId + "/read"), submitted).andExpect(status().isNotFound());
         perform(patch("/api/v1/notifications/" + notificationId + "/read"), pending).andExpect(status().isOk());
         perform(get("/api/v1/notifications/unread-count"), pending).andExpect(jsonPath("$.data.count").value(0));
+    }
+
+    @Test
+    @DisplayName("확정 후 미응답자 알림은 참석 미응답자에게 참석 요청을, 출발 위치를 등록하지 않은 참석자에게 출발 정보 입력 요청을 보낸다")
+    void confirmedReminder() throws Exception {
+        Member host = createMember("태양");
+        Member undecided = createMember("태희");
+        Member noDeparture = createMember("하은");
+        Member ready = createMember("민준");
+        CreatedAppointment appointment = createAppointment(host);
+        accept(appointment, undecided);
+        accept(appointment, noDeparture);
+        accept(appointment, ready);
+        perform(put(appointmentPath(appointment) + "/confirmation/date-time"), host,
+                Map.of("date", daysLater(10).toString(), "time", "15:00")).andExpect(status().isOk());
+        perform(put(appointmentPath(appointment) + "/confirmation/location"), host, Map.of(
+                "locationId", appointment.locationIds().getFirst(),
+                "detailPlace", Map.of("placeName", "강남역 카페거리", "latitude", 37.4979, "longitude", 127.0276)))
+                .andExpect(status().isOk());
+        perform(put(appointmentPath(appointment) + "/attendance/me"), noDeparture, Map.of("attendanceStatus", "ATTENDING"))
+                .andExpect(status().isOk());
+        perform(put(appointmentPath(appointment) + "/attendance/me"), ready, Map.of("attendanceStatus", "ATTENDING"))
+                .andExpect(status().isOk());
+        perform(put(appointmentPath(appointment) + "/travel/departure-location"), ready,
+                Map.of("name", "집", "latitude", 37.5, "longitude", 127.0)).andExpect(status().isOk());
+
+        perform(post(appointmentPath(appointment) + "/reminders"), host)
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.sentCount").value(2))
+                .andExpect(jsonPath("$.data.reminders[0].type").value("ATTENDANCE_REQUESTED"))
+                .andExpect(jsonPath("$.data.reminders[0].sentCount").value(1))
+                .andExpect(jsonPath("$.data.reminders[1].type").value("DEPARTURE_INPUT_REQUESTED"))
+                .andExpect(jsonPath("$.data.reminders[1].sentCount").value(1));
+
+        assertThat(notificationTypes(undecided)).doesNotContain("DEPARTURE_INPUT_REQUESTED");
+        assertThat(notificationTypes(noDeparture)).containsOnlyOnce("DEPARTURE_INPUT_REQUESTED");
+        assertThat(notificationTypes(ready)).doesNotContain("DEPARTURE_INPUT_REQUESTED");
+    }
+
+    private List<String> notificationTypes(Member member) throws Exception {
+        List<String> types = new java.util.ArrayList<>();
+        data(perform(get("/api/v1/notifications"), member)).get("notifications")
+                .forEach(notification -> types.add(notification.get("type").asString()));
+        return types;
     }
 
     @Test

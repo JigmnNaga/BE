@@ -51,6 +51,12 @@ public class AppointmentEventFactory {
                 "'" + appointment.getTitle() + "' 약속에 참석할 수 있는지 응답해 주세요.");
     }
 
+    public NotificationEvent departureInputRequested(Appointment appointment, List<Long> recipientIds) {
+        return new NotificationEvent(recipientIds, appointment.getId(), NotificationType.DEPARTURE_INPUT_REQUESTED,
+                "출발 정보를 알려주세요",
+                "'" + appointment.getTitle() + "' 약속에 출발할 위치를 등록해 주세요.");
+    }
+
     public NotificationEvent canceled(Appointment appointment, List<Long> recipientIds) {
         return new NotificationEvent(recipientIds, appointment.getId(), NotificationType.APPOINTMENT_CANCELED,
                 "약속이 취소됐어요",

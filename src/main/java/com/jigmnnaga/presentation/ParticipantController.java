@@ -65,7 +65,7 @@ public class ParticipantController {
         return CommonResponse.success(ResponseMessage.HOST_DELEGATE_SUCCESS);
     }
 
-    @Operation(summary = "미응답자 요청 알림", description = "방장이 미응답자에게 요청 알림을 보냅니다. 확정 전에는 가능 시간을 제출하지 않은 멤버에게 입력 요청을, 확정 후에는 참석 응답을 하지 않은 멤버에게 참석 여부 요청을 보냅니다.")
+    @Operation(summary = "미응답자 요청 알림", description = "방장이 미응답자에게 요청 알림을 보냅니다. 확정 전에는 가능 시간을 제출하지 않은 멤버에게 입력 요청을, 확정 후에는 참석 응답을 하지 않은 멤버에게 참석 여부 요청을, 참석으로 응답했지만 출발 위치를 등록하지 않은 멤버에게 출발 정보 입력 요청을 보냅니다. 응답의 reminders에 유형별 발송 인원이 담깁니다.")
     @PostMapping("/reminders")
     public CommonResponse<ReminderSendResponse> sendReminder(
             @Parameter(hidden = true) @LoginMember Long memberId,

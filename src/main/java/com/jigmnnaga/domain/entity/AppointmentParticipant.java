@@ -197,6 +197,10 @@ public class AppointmentParticipant extends BaseEntity {
         return !availabilities.isEmpty();
     }
 
+    public boolean hasDepartureLocation() {
+        return departureLatitude != null && departureLongitude != null;
+    }
+
     public boolean isHost() {
         return role == ParticipantRole.HOST;
     }

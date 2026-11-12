@@ -1,6 +1,7 @@
 package com.jigmnnaga.application.usecase;
 
 import com.jigmnnaga.application.dto.response.ReminderSendResponse;
+import com.jigmnnaga.application.dto.response.ReminderSendResponse.ReminderResultResponse;
 import com.jigmnnaga.application.event.AppointmentEventFactory;
 import com.jigmnnaga.application.event.AppointmentEventPublisher;
 import com.jigmnnaga.application.event.NotificationEvent;
@@ -32,18 +33,29 @@ public class ReminderSendUseCase {
                 .filter(participant -> !participant.getMember().getId().equals(memberId))
                 .toList();
 
-        NotificationEvent event = appointment.isConfirmed()
-                ? appointmentEventFactory.attendanceRequested(appointment, memberIdsOf(others.stream()
-                        .filter(participant -> participant.getAttendanceStatus() == AttendanceStatus.PENDING)
-                        .toList()))
-                : appointmentEventFactory.scheduleInputRequested(appointment, memberIdsOf(others.stream()
+        List<NotificationEvent> events = appointment.isConfirmed()
+                ? List.of(
+                        appointmentEventFactory.attendanceRequested(appointment, memberIdsOf(others.stream()
+                                .filter(participant -> participant.getAttendanceStatus() == AttendanceStatus.PENDING)
+                                .toList())),
+                        appointmentEventFactory.departureInputRequested(appointment, memberIdsOf(others.stream()
+                                .filter(participant -> participant.getAttendanceStatus() == AttendanceStatus.ATTENDING)
+                                .filter(participant -> !participant.hasDepartureLocation())
+                                .toList())))
+                : List.of(appointmentEventFactory.scheduleInputRequested(appointment, memberIdsOf(others.stream()
                         .filter(participant -> !participant.hasSubmittedSchedule())
-                        .toList()));
-        appointmentEventPublisher.publishNotification(event);
+                        .toList())));
+        events.forEach(appointmentEventPublisher::publishNotification);
 
+        List<ReminderResultResponse> reminders = events.stream()
+                .map(event -> ReminderResultResponse.builder()
+                        .type(event.type())
+                        .sentCount(event.recipientIds().size())
+                        .build())
+                .toList();
         return ReminderSendResponse.builder()
-                .type(event.type())
-                .sentCount(event.recipientIds().size())
+                .sentCount(reminders.stream().mapToInt(ReminderResultResponse::sentCount).sum())
+                .reminders(reminders)
                 .build();
     }
 

@@ -26,7 +26,7 @@ public class InviteController {
     private final InviteGetUseCase inviteGetUseCase;
     private final InviteRespondUseCase inviteRespondUseCase;
 
-    @Operation(summary = "초대 정보 조회", description = "초대 코드로 약속 이름, 방장, 응답 인원, 참여 멤버 현황과 내 응답 상태를 조회합니다.")
+    @Operation(summary = "초대 정보 조회", description = "초대 코드로 약속 이름, 방장, 응답 인원, 참여 멤버 현황과 내 응답 상태(myStatus)·역할(myRole)을 조회합니다. 아직 참여하지 않았다면 myStatus는 PENDING, myRole은 MEMBER입니다.")
     @GetMapping
     public CommonResponse<InviteInfoResponse> getInvite(
             @Parameter(hidden = true) @LoginMember Long memberId,

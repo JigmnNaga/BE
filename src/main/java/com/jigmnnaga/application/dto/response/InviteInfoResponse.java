@@ -1,5 +1,6 @@
 package com.jigmnnaga.application.dto.response;
 
+import com.jigmnnaga.domain.entity.ParticipantRole;
 import com.jigmnnaga.domain.entity.ParticipationStatus;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -16,6 +17,7 @@ public record InviteInfoResponse(
         int respondedCount,
         int joinedCount,
         ParticipationStatus myStatus,
+        ParticipantRole myRole,
         List<ParticipantResponse> participants
 ) {
 }

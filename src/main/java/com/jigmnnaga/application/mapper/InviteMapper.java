@@ -6,9 +6,11 @@ import com.jigmnnaga.application.dto.response.ReceivedInviteResponse;
 import com.jigmnnaga.domain.entity.Appointment;
 import com.jigmnnaga.domain.entity.AppointmentParticipant;
 import com.jigmnnaga.domain.entity.Member;
+import com.jigmnnaga.domain.entity.ParticipantRole;
 import com.jigmnnaga.domain.entity.ParticipationStatus;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Optional;
 import org.springframework.stereotype.Component;
 
 @Component
@@ -22,11 +24,11 @@ public class InviteMapper {
                 .findFirst()
                 .orElse(null);
 
-        ParticipationStatus myStatus = participants.stream()
+        Optional<AppointmentParticipant> me = participants.stream()
                 .filter(participant -> participant.getMember().getId().equals(memberId))
-                .map(AppointmentParticipant::getStatus)
-                .findFirst()
-                .orElse(ParticipationStatus.PENDING);
+                .findFirst();
+        ParticipationStatus myStatus = me.map(AppointmentParticipant::getStatus).orElse(ParticipationStatus.PENDING);
+        ParticipantRole myRole = me.map(AppointmentParticipant::getRole).orElse(ParticipantRole.MEMBER);
 
         List<AppointmentParticipant> visibleParticipants = participants.stream()
                 .filter(participant -> !participant.isKicked())
@@ -55,6 +57,7 @@ public class InviteMapper {
                 .respondedCount(respondedCount)
                 .joinedCount(joinedCount)
                 .myStatus(myStatus)
+                .myRole(myRole)
                 .participants(participantResponses)
                 .build();
     }

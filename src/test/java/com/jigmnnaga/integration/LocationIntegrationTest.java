@@ -29,6 +29,7 @@ import java.util.Optional;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -68,6 +69,23 @@ class LocationIntegrationTest extends IntegrationTestSupport {
 
     @Autowired
     private RedisTemplate<String, String> redisTemplate;
+
+    @BeforeEach
+    void clearRedisState() {
+        // 이전 테스트 실행에서 남은 Redis 키(ETA 쓰로틀, ETA 결과, 지각, 위치)를 정리합니다.
+        // ETA 쓰로틀 TTL(30초) 이내 재실행 시 키 충돌을 방지합니다.
+        deleteKeysByPattern("eta:throttle:*");
+        deleteKeysByPattern("eta:result:*");
+        deleteKeysByPattern("lateness:*");
+        deleteKeysByPattern("location:appointment:*");
+    }
+
+    private void deleteKeysByPattern(String pattern) {
+        java.util.Set<String> keys = redisTemplate.keys(pattern);
+        if (keys != null && !keys.isEmpty()) {
+            redisTemplate.delete(keys);
+        }
+    }
 
     // ── STOMP 헬퍼 ───────────────────────────────────────────────────────────
 

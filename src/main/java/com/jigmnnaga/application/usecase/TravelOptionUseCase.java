@@ -88,6 +88,12 @@ public class TravelOptionUseCase {
     }
 
     @Transactional
+    public void depart(Long memberId, Long appointmentId) {
+        AppointmentParticipant me = getTravelableParticipant(memberId, appointmentId);
+        me.depart();
+    }
+
+    @Transactional
     public DepartureLocationResponse registerDepartureLocation(
             Long memberId,
             Long appointmentId,

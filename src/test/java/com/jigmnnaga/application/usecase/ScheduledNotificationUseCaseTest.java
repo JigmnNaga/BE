@@ -121,8 +121,10 @@ class ScheduledNotificationUseCaseTest extends IntegrationTestSupport {
 
         transactionTemplate.executeWithoutResult(status -> {
             Appointment appointment = appointmentRepository.findById(appointmentId).orElseThrow();
-            appointment.confirmDateTime(appointment.getConfirmedDate(), appointment.getConfirmedTime().plusHours(1));
+            LocalDateTime changedDateTime = appointment.getConfirmedDateTime().plusHours(1);
+            appointment.confirmDateTime(changedDateTime.toLocalDate(), changedDateTime.toLocalTime());
         });
+
         scheduledNotificationUseCase.sendPreAppointmentNotifications(now);
 
         assertThat(received(appointmentId, NotificationType.APPOINTMENT_SOON)).hasSize(3);

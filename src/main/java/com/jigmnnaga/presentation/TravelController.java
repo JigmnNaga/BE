@@ -17,6 +17,7 @@ import jakarta.validation.constraints.DecimalMin;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -62,6 +63,16 @@ public class TravelController {
     ) {
         travelOptionUseCase.selectTravelMode(memberId, appointmentId, request);
         return CommonResponse.success(ResponseMessage.TRAVEL_MODE_SELECT_SUCCESS);
+    }
+
+    @Operation(summary = "출발하기", description = "확정된 약속의 참여자가 출발 상태를 DEPARTED로 변경합니다. 이미 출발했거나 도착한 경우에는 변경할 수 없습니다.")
+    @PostMapping("/departure")
+    public CommonResponse<Void> depart(
+            @Parameter(hidden = true) @LoginMember Long memberId,
+            @PathVariable Long appointmentId
+    ) {
+        travelOptionUseCase.depart(memberId, appointmentId);
+        return CommonResponse.success(ResponseMessage.DEPARTURE_SUCCESS);
     }
 
     @Operation(summary = "출발 위치 등록", description = "확정된 약속의 참여자가 자신의 출발 위치 이름과 좌표를 등록합니다.")

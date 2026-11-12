@@ -4,17 +4,24 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.anyDouble;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.jigmnnaga.application.dto.response.kakao.KakaoCarRouteResponse;
 import com.jigmnnaga.application.dto.response.kakao.KakaoTransitRouteResponse;
+import com.jigmnnaga.domain.entity.Appointment;
+import com.jigmnnaga.domain.entity.DepartureStatus;
 import com.jigmnnaga.domain.entity.Member;
+import com.jigmnnaga.domain.repository.AppointmentParticipantRepository;
+import com.jigmnnaga.domain.repository.AppointmentRepository;
 import com.jigmnnaga.global.client.kakao.KakaoMobilityApiClient;
 import com.jigmnnaga.global.client.kakao.KakaoTransitApiClient;
 import com.jigmnnaga.support.IntegrationTestSupport;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.time.ZoneId;
 import java.util.List;
 import java.util.Map;
@@ -22,6 +29,7 @@ import java.util.Optional;
 import java.util.concurrent.ThreadLocalRandom;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.ResultActions;
 import tools.jackson.databind.JsonNode;
@@ -33,6 +41,12 @@ class TravelIntegrationTest extends IntegrationTestSupport {
 
     @MockitoBean
     private KakaoMobilityApiClient kakaoMobilityApiClient;
+
+    @Autowired
+    private AppointmentParticipantRepository appointmentParticipantRepository;
+
+    @Autowired
+    private AppointmentRepository appointmentRepository;
 
     private final double latitude = 37.4 + ThreadLocalRandom.current().nextDouble(0.1);
     private final double longitude = 127.0 + ThreadLocalRandom.current().nextDouble(0.1);
@@ -75,6 +89,12 @@ class TravelIntegrationTest extends IntegrationTestSupport {
                 .param("latitude", String.valueOf(latitude))
                 .param("longitude", String.valueOf(longitude)), member);
     }
+
+    private ResultActions depart(CreatedAppointment appointment, Member member) throws Exception {
+        return perform(post(appointmentPath(appointment) + "/travel/departure"), member);
+    }
+
+    // ── 기존 테스트 ────────────────────────────────────────────────────────────
 
     @Test
     @DisplayName("세부 장소가 확정되기 전에는 이동수단 후보를 조회할 수 없다")
@@ -242,5 +262,128 @@ class TravelIntegrationTest extends IntegrationTestSupport {
                 .andExpect(jsonPath("$.data.members[1].travelMode").value("BUS"));
         perform(put(path), outsider, Map.of("mode", "BUS", "durationMinutes", 20)).andExpect(status().isForbidden());
         perform(put(path), member, Map.of("mode", "BUS", "durationMinutes", 0)).andExpect(status().isBadRequest());
+    }
+
+    // ── 출발하기 API 테스트 ───────────────────────────────────────────────────
+
+    @Test
+    @DisplayName("확정된 약속의 참여자는 출발하기를 요청할 수 있다")
+    void departSuccess() throws Exception {
+        Member host = createMember("태양");
+        CreatedAppointment appointment = confirmedAppointment(host);
+
+        depart(appointment, host).andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.message").value("출발했습니다."));
+    }
+
+    @Test
+    @DisplayName("출발 후 DB의 departureStatus가 DEPARTED로 저장된다")
+    void departSavesDepartedStatus() throws Exception {
+        Member host = createMember("태양");
+        CreatedAppointment appointment = confirmedAppointment(host);
+
+        depart(appointment, host).andExpect(status().isOk());
+
+        DepartureStatus saved = transactionTemplate.execute(tx ->
+                appointmentParticipantRepository
+                        .findByAppointmentIdAndMemberId(appointment.id(), host.getId())
+                        .orElseThrow()
+                        .getDepartureStatus()
+        );
+        assertThat(saved).isEqualTo(DepartureStatus.DEPARTED);
+    }
+
+    @Test
+    @DisplayName("이미 출발한 참여자가 출발하기를 다시 요청하면 409를 반환한다")
+    void departDuplicate() throws Exception {
+        Member host = createMember("태양");
+        CreatedAppointment appointment = confirmedAppointment(host);
+        depart(appointment, host).andExpect(status().isOk());
+
+        depart(appointment, host).andExpect(status().isConflict());
+    }
+
+    @Test
+    @DisplayName("이미 도착한 참여자가 출발하기를 요청하면 409를 반환한다")
+    void departWhenAlreadyArrived() throws Exception {
+        Member host = createMember("태양");
+        CreatedAppointment appointment = confirmedAppointment(host);
+        transactionTemplate.executeWithoutResult(tx ->
+                appointmentParticipantRepository
+                        .findByAppointmentIdAndMemberId(appointment.id(), host.getId())
+                        .ifPresent(p -> {
+                            p.depart();
+                            p.arrive();
+                        })
+        );
+
+        depart(appointment, host).andExpect(status().isConflict());
+    }
+
+    @Test
+    @DisplayName("약속에 참여하지 않은 멤버의 출발 요청은 403을 반환한다")
+    void departByNonParticipant() throws Exception {
+        Member host = createMember("태양");
+        Member outsider = createMember("외부인");
+        CreatedAppointment appointment = confirmedAppointment(host);
+
+        depart(appointment, outsider).andExpect(status().isForbidden());
+    }
+
+    @Test
+    @DisplayName("약속이 확정되지 않은 경우 출발 요청은 400을 반환한다")
+    void departWhenAppointmentNotConfirmed() throws Exception {
+        Member host = createMember("태양");
+        CreatedAppointment appointment = createAppointment(host);
+
+        depart(appointment, host).andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @DisplayName("취소된 약속에서 출발 요청은 400을 반환한다")
+    void departWhenAppointmentCanceled() throws Exception {
+        Member host = createMember("태양");
+        CreatedAppointment appointment = confirmedAppointment(host);
+        perform(post(appointmentPath(appointment) + "/cancel"), host).andExpect(status().isOk());
+
+        depart(appointment, host).andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @DisplayName("인증 없이 출발 요청하면 401을 반환한다")
+    void departWithoutAuth() throws Exception {
+        Member host = createMember("태양");
+        CreatedAppointment appointment = confirmedAppointment(host);
+
+        perform(post(appointmentPath(appointment) + "/travel/departure"), null)
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    @DisplayName("약속 시간이 지났더라도 출발 요청은 허용된다")
+    void departAfterAppointmentTimePassed() throws Exception {
+        Member host = createMember("태양");
+        CreatedAppointment appointment = confirmedAppointment(host);
+        transactionTemplate.executeWithoutResult(tx -> {
+            Appointment appt = appointmentRepository.findById(appointment.id()).orElseThrow();
+            appt.confirmDateTime(LocalDate.now().minusDays(1), LocalTime.of(10, 0));
+        });
+
+        depart(appointment, host).andExpect(status().isOk());
+    }
+
+    @Test
+    @DisplayName("출발 후에도 기존 이동수단 후보 조회 API는 정상 동작한다 (회귀)")
+    void travelOptionsAfterDepartureRegression() throws Exception {
+        Member host = createMember("태양");
+        CreatedAppointment appointment = confirmedAppointment(host);
+        givenTransitRoutes(
+                transitRoute("BUS", 1190, List.<String[]>of(new String[]{"BUS", "1190", "341"})));
+        givenTaxiRoute(900);
+        depart(appointment, host).andExpect(status().isOk());
+
+        getOptions(appointment, host).andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.destinationName").value("강남역 카페거리"));
     }
 }

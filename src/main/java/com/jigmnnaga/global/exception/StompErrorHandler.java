@@ -1,6 +1,7 @@
 package com.jigmnnaga.global.exception;
 
 import com.jigmnnaga.application.exception.BusinessException;
+import com.jigmnnaga.application.exception.ErrorCode;
 import com.jigmnnaga.global.response.CommonResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.messaging.Message;
@@ -25,12 +26,13 @@ public class StompErrorHandler extends StompSubProtocolErrorHandler {
             return super.handleClientMessageProcessingError(clientMessage, ex);
         }
 
-        String errorMessage = businessException.getErrorCode().getMessage();
+        ErrorCode errorCode = businessException.getErrorCode();
+        String errorMessage = errorCode.getMessage();
         StompHeaderAccessor accessor = StompHeaderAccessor.create(StompCommand.ERROR);
         accessor.setMessage(errorMessage);
         accessor.setContentType(MimeTypeUtils.APPLICATION_JSON);
         accessor.setLeaveMutable(true);
-        byte[] payload = jsonMapper.writeValueAsBytes(CommonResponse.fail(errorMessage));
+        byte[] payload = jsonMapper.writeValueAsBytes(CommonResponse.fail(errorCode));
         return MessageBuilder.createMessage(payload, accessor.getMessageHeaders());
     }
 

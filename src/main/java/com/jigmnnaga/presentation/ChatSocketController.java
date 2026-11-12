@@ -56,12 +56,12 @@ public class ChatSocketController {
     @MessageExceptionHandler(BusinessException.class)
     @SendToUser("/queue/errors")
     public CommonResponse<Void> handleBusinessException(BusinessException e) {
-        return CommonResponse.fail(e.getErrorCode().getMessage());
+        return CommonResponse.fail(e.getErrorCode());
     }
 
     @MessageExceptionHandler(MethodArgumentNotValidException.class)
     @SendToUser("/queue/errors")
     public CommonResponse<Void> handleInvalidMessage(MethodArgumentNotValidException e) {
-        return CommonResponse.fail(ErrorCode.INVALID_CHAT_MESSAGE.getMessage());
+        return CommonResponse.fail(ErrorCode.INVALID_CHAT_MESSAGE);
     }
 }

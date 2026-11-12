@@ -1,6 +1,8 @@
 
 package com.jigmnnaga.domain.entity;
 
+import com.jigmnnaga.application.exception.BusinessException;
+import com.jigmnnaga.application.exception.ErrorCode;
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -98,6 +100,12 @@ public class AppointmentParticipant extends BaseEntity {
     @Column(name = "departure_longitude", precision = 10, scale = 7)
     private BigDecimal departureLongitude;
 
+    @Enumerated(EnumType.STRING)
+    @JdbcTypeCode(SqlTypes.VARCHAR)
+    @ColumnDefault("'BEFORE_DEPARTURE'")
+    @Column(name = "departure_status", nullable = false, length = 30)
+    private DepartureStatus departureStatus = DepartureStatus.BEFORE_DEPARTURE;
+
     @Builder
     private AppointmentParticipant(Member member, ParticipantRole role, ParticipationStatus status) {
         this.member = member;
@@ -138,6 +146,26 @@ public class AppointmentParticipant extends BaseEntity {
         this.departureLocationName = name;
         this.departureLatitude = latitude;
         this.departureLongitude = longitude;
+    }
+
+    public void depart() {
+        if (departureStatus == DepartureStatus.DEPARTED) {
+            throw new BusinessException(ErrorCode.ALREADY_DEPARTED);
+        }
+        if (departureStatus == DepartureStatus.ARRIVED) {
+            throw new BusinessException(ErrorCode.ALREADY_ARRIVED);
+        }
+        this.departureStatus = DepartureStatus.DEPARTED;
+    }
+
+    public void arrive() {
+        if (departureStatus == DepartureStatus.BEFORE_DEPARTURE) {
+            throw new BusinessException(ErrorCode.NOT_YET_DEPARTED);
+        }
+        if (departureStatus == DepartureStatus.ARRIVED) {
+            throw new BusinessException(ErrorCode.ALREADY_ARRIVED);
+        }
+        this.departureStatus = DepartureStatus.ARRIVED;
     }
 
     public void updateNotificationEnabled(boolean notificationEnabled) {

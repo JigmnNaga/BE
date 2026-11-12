@@ -28,6 +28,7 @@ public enum ErrorCode {
     INTERNAL_SERVER_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "서버 내부 오류가 발생했습니다. 잠시 후 다시 시도해주세요."),
 
     INVALID_INPUT_VALUE(HttpStatus.BAD_REQUEST, "잘못된 입력값입니다."),
+    REQUEST_NOT_SUPPORTED(HttpStatus.BAD_REQUEST, "요청을 처리할 수 없습니다."),
     DUPLICATE_CANDIDATE_DATE(HttpStatus.BAD_REQUEST, "후보 날짜가 중복되었습니다."),
     PAST_CANDIDATE_DATE(HttpStatus.BAD_REQUEST, "지난 날짜는 후보 날짜로 선택할 수 없습니다."),
     INVALID_CANDIDATE_DATES(HttpStatus.BAD_REQUEST, "날짜 선택 방식에 맞지 않는 후보 날짜입니다."),

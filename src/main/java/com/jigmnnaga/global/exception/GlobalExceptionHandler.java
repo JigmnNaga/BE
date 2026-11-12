@@ -23,7 +23,7 @@ public class GlobalExceptionHandler {
     public ResponseEntity<CommonResponse<Void>> handleBusinessException(BusinessException e) {
         ErrorCode errorCode = e.getErrorCode();
         return ResponseEntity.status(errorCode.getHttpStatus())
-                .body(CommonResponse.fail(errorCode.getMessage()));
+                .body(CommonResponse.fail(errorCode));
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
@@ -33,20 +33,20 @@ public class GlobalExceptionHandler {
                 ? ErrorCode.INVALID_INPUT_VALUE.getMessage()
                 : fieldError.getField() + ": " + fieldError.getDefaultMessage();
         return ResponseEntity.status(ErrorCode.INVALID_INPUT_VALUE.getHttpStatus())
-                .body(CommonResponse.fail(message));
+                .body(CommonResponse.fail(ErrorCode.INVALID_INPUT_VALUE, message));
     }
 
     @ExceptionHandler(HttpMessageNotReadableException.class)
     public ResponseEntity<CommonResponse<Void>> handleHttpMessageNotReadableException(HttpMessageNotReadableException e) {
         return ResponseEntity.status(ErrorCode.INVALID_INPUT_VALUE.getHttpStatus())
-                .body(CommonResponse.fail(ErrorCode.INVALID_INPUT_VALUE.getMessage()));
+                .body(CommonResponse.fail(ErrorCode.INVALID_INPUT_VALUE));
     }
 
     @ExceptionHandler({MissingServletRequestParameterException.class, MethodArgumentTypeMismatchException.class,
             HandlerMethodValidationException.class})
     public ResponseEntity<CommonResponse<Void>> handleInvalidRequestParameter(Exception e) {
         return ResponseEntity.status(ErrorCode.INVALID_INPUT_VALUE.getHttpStatus())
-                .body(CommonResponse.fail(ErrorCode.INVALID_INPUT_VALUE.getMessage()));
+                .body(CommonResponse.fail(ErrorCode.INVALID_INPUT_VALUE));
     }
 
     @ExceptionHandler(Exception.class)
@@ -54,11 +54,11 @@ public class GlobalExceptionHandler {
         if (e instanceof ErrorResponse errorResponse) {
             return ResponseEntity.status(errorResponse.getStatusCode())
                     .headers(errorResponse.getHeaders())
-                    .body(CommonResponse.fail("요청을 처리할 수 없습니다."));
+                    .body(CommonResponse.fail(ErrorCode.REQUEST_NOT_SUPPORTED));
         }
         log.error("Unexpected server error", e);
         ErrorCode errorCode = ErrorCode.INTERNAL_SERVER_ERROR;
         return ResponseEntity.status(errorCode.getHttpStatus())
-                .body(CommonResponse.fail(errorCode.getMessage()));
+                .body(CommonResponse.fail(errorCode));
     }
 }

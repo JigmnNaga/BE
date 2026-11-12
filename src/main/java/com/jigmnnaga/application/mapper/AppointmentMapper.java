@@ -13,10 +13,14 @@ import com.jigmnnaga.domain.entity.ParticipationStatus;
 import java.time.LocalDate;
 import java.util.Comparator;
 import java.util.List;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
 @Component
+@RequiredArgsConstructor
 public class AppointmentMapper {
+
+    private final ProfileImageUrlResolver profileImageUrlResolver;
 
     public Appointment toAppointment(AppointmentCreateRequest request, List<LocalDate> sortedDates,
                                      Member host, List<Member> invitedMembers, String inviteCode) {
@@ -86,7 +90,7 @@ public class AppointmentMapper {
                 .map(participant -> AppointmentDetailResponse.MemberStatusResponse.builder()
                         .memberId(participant.getMember().getId())
                         .nickname(participant.getMember().getNickname())
-                        .profileImageUrl(participant.getMember().getProfileImageUrl())
+                        .profileImageUrl(profileImageUrlResolver.resolve(participant.getMember()))
                         .role(participant.getRole())
                         .scheduleSubmitted(participant.hasSubmittedSchedule())
                         .attendanceStatus(participant.getAttendanceStatus())

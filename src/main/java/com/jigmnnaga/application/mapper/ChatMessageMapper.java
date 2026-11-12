@@ -12,13 +12,17 @@ import com.jigmnnaga.domain.entity.Member;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
 @Component
+@RequiredArgsConstructor
 public class ChatMessageMapper {
 
     private static final int MAX_PUSH_BODY_LENGTH = 100;
     private static final String CHAT_PUSH_TYPE = "CHAT_MESSAGE";
+
+    private final ProfileImageUrlResolver profileImageUrlResolver;
 
     public ChatMessage toTextMessage(Appointment appointment, Member sender, String content) {
         return ChatMessage.builder()
@@ -45,7 +49,7 @@ public class ChatMessageMapper {
                 .type(chatMessage.getType())
                 .senderId(sender == null ? null : sender.getId())
                 .senderNickname(sender == null ? null : sender.getNickname())
-                .senderProfileImageUrl(sender == null ? null : sender.getProfileImageUrl())
+                .senderProfileImageUrl(profileImageUrlResolver.resolve(sender))
                 .content(chatMessage.getContent())
                 .sentAt(chatMessage.getCreatedAt())
                 .unreadCount(chatMessage.getType() == ChatMessageType.SYSTEM ? null : unreadCount)

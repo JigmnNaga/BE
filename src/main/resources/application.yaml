@@ -47,5 +47,5 @@ firebase:
 
 aws:
   s3:
-    bucket: ${S3_BUCKET_NAME}
+    bucket: ${S3_BUCKET_NAME:}
     region: ${AWS_REGION:ap-northeast-2}

@@ -23,7 +23,7 @@ import org.springframework.stereotype.Component;
 public class StompAuthChannelInterceptor implements ChannelInterceptor {
 
     private static final String BEARER_PREFIX = "Bearer ";
-    private static final Pattern APPOINTMENT_TOPIC = Pattern.compile("^/sub/appointments/(\\d+)(/read)?$");
+    private static final Pattern APPOINTMENT_TOPIC = Pattern.compile("^/sub/appointments/(\\d+)(/read|/location|/eta)?$");
     private static final String USER_DESTINATION_PREFIX = "/user/";
 
     private final JwtProvider jwtProvider;

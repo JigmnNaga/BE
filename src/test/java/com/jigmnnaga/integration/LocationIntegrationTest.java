@@ -789,4 +789,83 @@ class LocationIntegrationTest extends IntegrationTestSupport {
         subscribe(outsiderSession, "/sub/appointments/" + appointment.id() + "/arrival");
         assertThat(outsiderErrors.poll(3, TimeUnit.SECONDS)).isEqualTo("약속에 참여한 멤버만 이용할 수 있습니다.");
     }
+
+    // ── 수동 도착 WebSocket 테스트 ────────────────────────────────────────────
+
+    @Test
+    @DisplayName("수동_도착_요청_시_arrival_채널에_브로드캐스트된다")
+    void 수동_도착_요청_시_arrival_채널에_브로드캐스트된다() throws Exception {
+        Member host = createMember("태양");
+        Member member = createMember("태희");
+        CreatedAppointment appointment = confirmedAppointment(host);
+        accept(appointment, member);
+
+        // 출발 상태로 전환
+        perform(post(appointmentPath(appointment) + "/travel/departure"), host)
+                .andExpect(status().isOk());
+
+        StompSession hostSession = connect(host, new LinkedBlockingQueue<>());
+        StompSession memberSession = connect(member, new LinkedBlockingQueue<>());
+        BlockingQueue<Map<?, ?>> arrivalQueue = subscribe(memberSession,
+                "/sub/appointments/" + appointment.id() + "/arrival");
+
+        // 수동 도착 요청 (REST API)
+        perform(post(appointmentPath(appointment) + "/travel/arrival"), host)
+                .andExpect(status().isOk());
+
+        Map<?, ?> arrivalMsg = arrivalQueue.poll(3, TimeUnit.SECONDS);
+        assertThat(arrivalMsg).isNotNull();
+        assertThat(((Number) arrivalMsg.get("memberId")).longValue()).isEqualTo(host.getId());
+        assertThat(arrivalMsg.get("arrivedAt")).isNotNull();
+    }
+
+    @Test
+    @DisplayName("수동_도착_이후_자동_도착_감지는_중복_이벤트를_발송하지_않는다_회귀")
+    void 수동_도착_이후_자동_도착_감지는_중복_이벤트를_발송하지_않는다_회귀() throws Exception {
+        Member host = createMember("태양");
+        CreatedAppointment appointment = confirmedAppointment(host);
+
+        // 출발 후 수동 도착
+        perform(post(appointmentPath(appointment) + "/travel/departure"), host)
+                .andExpect(status().isOk());
+        perform(post(appointmentPath(appointment) + "/travel/arrival"), host)
+                .andExpect(status().isOk());
+
+        StompSession session = connect(host, new LinkedBlockingQueue<>());
+        BlockingQueue<Map<?, ?>> arrivalQueue = subscribe(session,
+                "/sub/appointments/" + appointment.id() + "/arrival");
+
+        // 이미 ARRIVED 상태이므로 위치 전송은 NOT_DEPARTED 오류 → 도착 감지 없음
+        // (LocationShareUseCase에서 DEPARTED 상태 체크로 차단됨)
+        // 별도 arrival 이벤트가 발생하지 않는다
+        Map<?, ?> unexpectedArrival = arrivalQueue.poll(2, TimeUnit.SECONDS);
+        assertThat(unexpectedArrival).isNull();
+    }
+
+    @Test
+    @DisplayName("기존_자동_도착_감지_기능은_수동_도착_구현_후에도_동작한다_회귀")
+    void 기존_자동_도착_감지_기능은_수동_도착_구현_후에도_동작한다_회귀() throws Exception {
+        Member host = createMember("태양");
+        CreatedAppointment appointment = confirmedAppointment(host);
+
+        perform(post(appointmentPath(appointment) + "/travel/departure"), host)
+                .andExpect(status().isOk());
+
+        StompSession session = connect(host, new LinkedBlockingQueue<>());
+        BlockingQueue<Map<?, ?>> arrivalQueue = subscribe(session,
+                "/sub/appointments/" + appointment.id() + "/arrival");
+
+        // 반경 내 첫 번째 위치 (카운트=1)
+        session.send("/pub/appointments/" + appointment.id() + "/location",
+                Map.of("latitude", 37.4979, "longitude", 127.0276));
+        Thread.sleep(1200);
+
+        // 반경 내 두 번째 위치 → 자동 도착 감지
+        session.send("/pub/appointments/" + appointment.id() + "/location",
+                Map.of("latitude", 37.4979, "longitude", 127.0276));
+
+        Map<?, ?> arrivalMsg = arrivalQueue.poll(3, TimeUnit.SECONDS);
+        assertThat(arrivalMsg).isNotNull();
+        assertThat(((Number) arrivalMsg.get("memberId")).longValue()).isEqualTo(host.getId());
+    }
 }

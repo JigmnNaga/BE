@@ -54,7 +54,8 @@ public enum ResponseMessage {
     PARTICIPANT_KICK_SUCCESS("멤버를 내보냈습니다."),
     HOST_DELEGATE_SUCCESS("방장을 위임했습니다."),
     MY_INVITES_GET_SUCCESS("받은 초대 목록을 조회했습니다."),
-    DEPARTURE_SUCCESS("출발했습니다.");
+    DEPARTURE_SUCCESS("출발했습니다."),
+    ARRIVAL_SUCCESS("도착했습니다.");
 
     private final String message;
 }

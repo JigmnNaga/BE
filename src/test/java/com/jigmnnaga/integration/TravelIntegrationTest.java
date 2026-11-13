@@ -386,4 +386,143 @@ class TravelIntegrationTest extends IntegrationTestSupport {
         getOptions(appointment, host).andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.destinationName").value("강남역 카페거리"));
     }
+
+    // ── 도착하기 API 테스트 ───────────────────────────────────────────────────
+
+    private ResultActions arrive(CreatedAppointment appointment, Member member) throws Exception {
+        return perform(post(appointmentPath(appointment) + "/travel/arrival"), member);
+    }
+
+    @Test
+    @DisplayName("DEPARTED 상태 참여자가 도착하기를 요청하면 200을 반환한다")
+    void arriveSuccess() throws Exception {
+        Member host = createMember("태양");
+        CreatedAppointment appointment = confirmedAppointment(host);
+        depart(appointment, host).andExpect(status().isOk());
+
+        arrive(appointment, host)
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.message").value("도착했습니다."));
+    }
+
+    @Test
+    @DisplayName("도착 후 DB의 departureStatus가 ARRIVED로 저장된다")
+    void arrivalSavesArrivedStatus() throws Exception {
+        Member host = createMember("태양");
+        CreatedAppointment appointment = confirmedAppointment(host);
+        depart(appointment, host).andExpect(status().isOk());
+        arrive(appointment, host).andExpect(status().isOk());
+
+        DepartureStatus saved = transactionTemplate.execute(tx ->
+                appointmentParticipantRepository
+                        .findByAppointmentIdAndMemberId(appointment.id(), host.getId())
+                        .orElseThrow()
+                        .getDepartureStatus()
+        );
+        assertThat(saved).isEqualTo(DepartureStatus.ARRIVED);
+    }
+
+    @Test
+    @DisplayName("인증 없이 도착 요청하면 401을 반환한다")
+    void arriveWithoutAuth() throws Exception {
+        Member host = createMember("태양");
+        CreatedAppointment appointment = confirmedAppointment(host);
+
+        perform(post(appointmentPath(appointment) + "/travel/arrival"), null)
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    @DisplayName("약속에 참여하지 않은 멤버의 도착 요청은 403을 반환한다")
+    void arriveByNonParticipant() throws Exception {
+        Member host = createMember("태양");
+        Member outsider = createMember("외부인");
+        CreatedAppointment appointment = confirmedAppointment(host);
+        depart(appointment, host).andExpect(status().isOk());
+
+        arrive(appointment, outsider).andExpect(status().isForbidden());
+    }
+
+    @Test
+    @DisplayName("초대를 수락하지 않은(PENDING) 참여자의 도착 요청은 403을 반환한다")
+    void arriveByNonAcceptedParticipant() throws Exception {
+        Member host = createMember("태양");
+        Member pending = createMember("대기자");
+        CreatedAppointment appointment = confirmedAppointment(host);
+        // pending 멤버는 초대만 생성되고 수락하지 않은 상태 (PENDING)
+        // accept()를 호출하지 않으면 ACCEPTED 상태가 아니므로 403
+
+        arrive(appointment, pending).andExpect(status().isForbidden());
+    }
+
+    @Test
+    @DisplayName("약속이 확정되지 않은 경우 도착 요청은 400을 반환한다")
+    void arriveWhenAppointmentNotConfirmed() throws Exception {
+        Member host = createMember("태양");
+        CreatedAppointment appointment = createAppointment(host);
+
+        arrive(appointment, host).andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @DisplayName("취소된 약속에서 도착 요청은 400을 반환한다")
+    void arriveWhenAppointmentCanceled() throws Exception {
+        Member host = createMember("태양");
+        CreatedAppointment appointment = confirmedAppointment(host);
+        depart(appointment, host).andExpect(status().isOk());
+        perform(post(appointmentPath(appointment) + "/cancel"), host).andExpect(status().isOk());
+
+        arrive(appointment, host).andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @DisplayName("BEFORE_DEPARTURE 상태에서 도착 요청하면 400을 반환한다")
+    void arriveBeforeDeparture() throws Exception {
+        Member host = createMember("태양");
+        CreatedAppointment appointment = confirmedAppointment(host);
+        // 출발하기 없이 바로 도착 요청
+
+        arrive(appointment, host).andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @DisplayName("이미 ARRIVED 상태에서 도착 요청을 중복하면 409를 반환한다")
+    void arriveDuplicate() throws Exception {
+        Member host = createMember("태양");
+        CreatedAppointment appointment = confirmedAppointment(host);
+        depart(appointment, host).andExpect(status().isOk());
+        arrive(appointment, host).andExpect(status().isOk());
+
+        arrive(appointment, host).andExpect(status().isConflict());
+    }
+
+    @Test
+    @DisplayName("자동 도착(ARRIVED) 이후 수동 도착 요청은 409를 반환한다 (자동·수동 중복 방지)")
+    void arriveAfterAutoArrival() throws Exception {
+        Member host = createMember("태양");
+        CreatedAppointment appointment = confirmedAppointment(host);
+        // DB를 직접 ARRIVED로 설정해 자동 도착 완료 상황 시뮬레이션
+        transactionTemplate.executeWithoutResult(tx ->
+                appointmentParticipantRepository
+                        .findByAppointmentIdAndMemberId(appointment.id(), host.getId())
+                        .ifPresent(p -> {
+                            p.depart();
+                            p.arrive();
+                        })
+        );
+
+        arrive(appointment, host).andExpect(status().isConflict());
+    }
+
+    @Test
+    @DisplayName("기존 출발하기 API는 도착하기 API 추가 후에도 정상 동작한다 (회귀)")
+    void departureRegressionAfterArrivalImpl() throws Exception {
+        Member host = createMember("태양");
+        CreatedAppointment appointment = confirmedAppointment(host);
+
+        depart(appointment, host)
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.message").value("출발했습니다."));
+    }
 }

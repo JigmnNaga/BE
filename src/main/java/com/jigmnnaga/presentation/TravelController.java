@@ -4,6 +4,7 @@ import com.jigmnnaga.application.dto.request.DepartureLocationRegisterRequest;
 import com.jigmnnaga.application.dto.request.TravelModeSelectRequest;
 import com.jigmnnaga.application.dto.response.DepartureLocationResponse;
 import com.jigmnnaga.application.dto.response.TravelOptionsResponse;
+import com.jigmnnaga.application.usecase.ManualArrivalUseCase;
 import com.jigmnnaga.application.usecase.TravelOptionUseCase;
 import com.jigmnnaga.global.auth.LoginMember;
 import com.jigmnnaga.global.response.CommonResponse;
@@ -31,6 +32,7 @@ import org.springframework.web.bind.annotation.RestController;
 public class TravelController {
 
     private final TravelOptionUseCase travelOptionUseCase;
+    private final ManualArrivalUseCase manualArrivalUseCase;
 
     @Operation(summary = "등록된 출발 위치 기준 예상 이동시간 조회", description = "미리 등록한 출발 위치에서 확정된 약속 장소까지 버스·지하철·택시별 예상 이동시간을 계산합니다. 출발 위치를 먼저 등록해야 합니다.")
     @GetMapping("/estimated-time")
@@ -73,6 +75,16 @@ public class TravelController {
     ) {
         travelOptionUseCase.depart(memberId, appointmentId);
         return CommonResponse.success(ResponseMessage.DEPARTURE_SUCCESS);
+    }
+
+    @Operation(summary = "도착하기", description = "확정된 약속의 참여자가 출발 상태를 ARRIVED로 변경합니다. 출발(DEPARTED) 상태에서만 도착 처리가 가능하며, 이미 도착한 경우 중복 처리됩니다.")
+    @PostMapping("/arrival")
+    public CommonResponse<Void> arrive(
+            @Parameter(hidden = true) @LoginMember Long memberId,
+            @PathVariable Long appointmentId
+    ) {
+        manualArrivalUseCase.arrive(memberId, appointmentId);
+        return CommonResponse.success(ResponseMessage.ARRIVAL_SUCCESS);
     }
 
     @Operation(summary = "출발 위치 등록", description = "확정된 약속의 참여자가 자신의 출발 위치 이름과 좌표를 등록합니다.")

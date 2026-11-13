@@ -11,14 +11,19 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.jigmnnaga.application.dto.response.kakao.KakaoCarRouteResponse;
 import com.jigmnnaga.domain.entity.Appointment;
+import com.jigmnnaga.domain.entity.AppointmentParticipant;
+import com.jigmnnaga.domain.entity.DepartureStatus;
 import com.jigmnnaga.domain.entity.Member;
+import com.jigmnnaga.domain.repository.AppointmentParticipantRepository;
 import com.jigmnnaga.domain.repository.AppointmentRepository;
+import com.jigmnnaga.global.cache.ArrivalProximityCache;
 import com.jigmnnaga.global.cache.EtaCache;
 import com.jigmnnaga.global.cache.LatenessCache;
 import com.jigmnnaga.global.client.kakao.KakaoMobilityApiClient;
 import com.jigmnnaga.global.client.kakao.KakaoTransitApiClient;
 import com.jigmnnaga.global.util.TimeZones;
 import com.jigmnnaga.support.IntegrationTestSupport;
+import org.mockito.Mockito;
 import java.lang.reflect.Type;
 import java.time.LocalDateTime;
 import java.time.LocalDate;
@@ -65,19 +70,33 @@ class LocationIntegrationTest extends IntegrationTestSupport {
     private LatenessCache latenessCache;
 
     @Autowired
+    private ArrivalProximityCache arrivalProximityCache;
+
+    @Autowired
     private AppointmentRepository appointmentRepository;
+
+    @Autowired
+    private AppointmentParticipantRepository appointmentParticipantRepository;
 
     @Autowired
     private RedisTemplate<String, String> redisTemplate;
 
     @BeforeEach
-    void clearRedisState() {
-        // 이전 테스트 실행에서 남은 Redis 키(ETA 쓰로틀, ETA 결과, 지각, 위치)를 정리합니다.
+    void clearRedisState() throws InterruptedException {
+        // 이전 테스트의 비동기 WebSocket/ETA 처리가 완료될 때까지 대기합니다.
+        // 이전 테스트에서 발송된 메시지 처리가 다음 테스트의 mock에 간섭하는 것을 방지합니다.
+        Thread.sleep(300);
+        // 이전 테스트 실행에서 남은 Redis 키(ETA 쓰로틀, ETA 결과, 지각, 위치, 도착)를 정리합니다.
         // ETA 쓰로틀 TTL(30초) 이내 재실행 시 키 충돌을 방지합니다.
         deleteKeysByPattern("eta:throttle:*");
         deleteKeysByPattern("eta:result:*");
         deleteKeysByPattern("lateness:*");
         deleteKeysByPattern("location:appointment:*");
+        deleteKeysByPattern("arrival:proximity:*");
+        deleteKeysByPattern("arrival:claimed:*");
+        // 이전 테스트의 지연된 비동기 호출이 @BeforeEach 중 실행되었을 수 있으므로
+        // mock 호출 기록을 명시적으로 초기화합니다.
+        Mockito.clearInvocations(kakaoMobilityApiClient);
     }
 
     private void deleteKeysByPattern(String pattern) {
@@ -373,22 +392,20 @@ class LocationIntegrationTest extends IntegrationTestSupport {
 
         StompSession session = connect(host, new LinkedBlockingQueue<>());
 
-        // 첫 번째 위치 갱신 → ETA 계산
+        // 첫 번째 위치 갱신 → ETA 계산 (목적지에서 ~1.5km 떨어진 반경 외 위치)
         session.send("/pub/appointments/" + appointment.id() + "/location",
-                Map.of("latitude", 37.4979, "longitude", 127.0276));
-        Thread.sleep(500);
-        verify(kakaoMobilityApiClient, times(1))
-                .getCarRoute(anyDouble(), anyDouble(), anyDouble(), anyDouble());
+                Map.of("latitude", 37.5100, "longitude", 127.0400));
+        Thread.sleep(1000); // ETA 계산이 완료될 때까지 충분히 대기
 
         // Redis에서 쓰로틀 키를 직접 삭제해 30초 경과를 시뮬레이션
         redisTemplate.delete(etaCache.throttleKey(appointment.id(), host.getId()));
 
         Thread.sleep(1500); // 위치 쓰로틀(1s) 해제 대기
 
-        // 두 번째 위치 갱신 → ETA 재계산
+        // 두 번째 위치 갱신 → ETA 재계산 (여전히 반경 외)
         session.send("/pub/appointments/" + appointment.id() + "/location",
-                Map.of("latitude", 37.4985, "longitude", 127.0280));
-        Thread.sleep(500);
+                Map.of("latitude", 37.5099, "longitude", 127.0399));
+        Thread.sleep(1000); // ETA 계산이 완료될 때까지 충분히 대기
 
         verify(kakaoMobilityApiClient, times(2))
                 .getCarRoute(anyDouble(), anyDouble(), anyDouble(), anyDouble());
@@ -594,5 +611,182 @@ class LocationIntegrationTest extends IntegrationTestSupport {
         assertThat(received.get("estimatedArrivalTime")).isNotNull();
         assertThat(received.get("calculatedAt")).isNotNull();
         assertThat(((Number) received.get("memberId")).longValue()).isEqualTo(host.getId());
+    }
+
+    // ── 도착 감지 테스트 ──────────────────────────────────────────────────────
+
+    @Test
+    @DisplayName("목적지_반경_외_위치_전송_시_도착_감지되지_않는다")
+    void 목적지_반경_외_위치_전송_시_도착_감지되지_않는다() throws Exception {
+        Member host = createMember("태양");
+        CreatedAppointment appointment = confirmedAppointment(host);
+        depart(appointment, host);
+
+        StompSession session = connect(host, new LinkedBlockingQueue<>());
+        BlockingQueue<Map<?, ?>> arrivalQueue = subscribe(session,
+                "/sub/appointments/" + appointment.id() + "/arrival");
+
+        // 목적지(37.4979, 127.0276)에서 약 1.5km 떨어진 위치
+        session.send("/pub/appointments/" + appointment.id() + "/location",
+                Map.of("latitude", 37.5100, "longitude", 127.0400));
+        session.send("/pub/appointments/" + appointment.id() + "/location",
+                Map.of("latitude", 37.5100, "longitude", 127.0400));
+
+        Map<?, ?> arrivalMsg = arrivalQueue.poll(2, TimeUnit.SECONDS);
+        assertThat(arrivalMsg).isNull();
+
+        // DB 상태도 DEPARTED 유지
+        Thread.sleep(300);
+        AppointmentParticipant participant = appointmentParticipantRepository
+                .findByAppointmentIdAndMemberId(appointment.id(), host.getId()).orElseThrow();
+        assertThat(participant.getDepartureStatus()).isEqualTo(DepartureStatus.DEPARTED);
+    }
+
+    @Test
+    @DisplayName("목적지_반경_내_1회만_전송_시_도착_감지되지_않는다")
+    void 목적지_반경_내_1회만_전송_시_도착_감지되지_않는다() throws Exception {
+        Member host = createMember("태양");
+        CreatedAppointment appointment = confirmedAppointment(host);
+        depart(appointment, host);
+
+        StompSession session = connect(host, new LinkedBlockingQueue<>());
+        BlockingQueue<Map<?, ?>> arrivalQueue = subscribe(session,
+                "/sub/appointments/" + appointment.id() + "/arrival");
+
+        // 목적지와 동일한 좌표 → 반경 내 (1회)
+        session.send("/pub/appointments/" + appointment.id() + "/location",
+                Map.of("latitude", 37.4979, "longitude", 127.0276));
+
+        Map<?, ?> arrivalMsg = arrivalQueue.poll(2, TimeUnit.SECONDS);
+        assertThat(arrivalMsg).isNull();
+
+        Thread.sleep(300);
+        AppointmentParticipant participant = appointmentParticipantRepository
+                .findByAppointmentIdAndMemberId(appointment.id(), host.getId()).orElseThrow();
+        assertThat(participant.getDepartureStatus()).isEqualTo(DepartureStatus.DEPARTED);
+    }
+
+    @Test
+    @DisplayName("목적지_반경_내_2회_연속_전송_시_ARRIVED로_변경되고_arrival_채널에_브로드캐스트된다")
+    void 목적지_반경_내_2회_연속_전송_시_ARRIVED로_변경되고_arrival_채널에_브로드캐스트된다() throws Exception {
+        Member host = createMember("태양");
+        Member member = createMember("태희");
+        CreatedAppointment appointment = confirmedAppointment(host);
+        accept(appointment, member);
+        depart(appointment, host);
+
+        StompSession hostSession = connect(host, new LinkedBlockingQueue<>());
+        StompSession memberSession = connect(member, new LinkedBlockingQueue<>());
+        BlockingQueue<Map<?, ?>> arrivalQueue = subscribe(memberSession,
+                "/sub/appointments/" + appointment.id() + "/arrival");
+
+        // 첫 번째 위치 (반경 내)
+        hostSession.send("/pub/appointments/" + appointment.id() + "/location",
+                Map.of("latitude", 37.4979, "longitude", 127.0276));
+        Thread.sleep(1200); // 위치 쓰로틀(1s) 해제 대기
+
+        // 두 번째 위치 (반경 내) → 도착 감지
+        hostSession.send("/pub/appointments/" + appointment.id() + "/location",
+                Map.of("latitude", 37.4979, "longitude", 127.0276));
+
+        Map<?, ?> arrivalMsg = arrivalQueue.poll(3, TimeUnit.SECONDS);
+        assertThat(arrivalMsg).isNotNull();
+        assertThat(((Number) arrivalMsg.get("memberId")).longValue()).isEqualTo(host.getId());
+        assertThat(arrivalMsg.get("arrivedAt")).isNotNull();
+
+        // DB 상태 확인
+        Thread.sleep(300);
+        AppointmentParticipant participant = transactionTemplate.execute(status ->
+                appointmentParticipantRepository
+                        .findByAppointmentIdAndMemberId(appointment.id(), host.getId()).orElseThrow());
+        assertThat(participant.getDepartureStatus()).isEqualTo(DepartureStatus.ARRIVED);
+    }
+
+    @Test
+    @DisplayName("반경_외_진입_후_다시_반경_내_2회_전송_시_도착_감지된다 (카운트_리셋_후_재누적)")
+    void 반경_외_진입_후_다시_반경_내_2회_전송_시_도착_감지된다() throws Exception {
+        Member host = createMember("태양");
+        CreatedAppointment appointment = confirmedAppointment(host);
+        depart(appointment, host);
+
+        StompSession session = connect(host, new LinkedBlockingQueue<>());
+        BlockingQueue<Map<?, ?>> arrivalQueue = subscribe(session,
+                "/sub/appointments/" + appointment.id() + "/arrival");
+
+        // 1. 반경 내 1회
+        session.send("/pub/appointments/" + appointment.id() + "/location",
+                Map.of("latitude", 37.4979, "longitude", 127.0276));
+        Thread.sleep(1200);
+
+        // 2. 반경 외 → 카운트 초기화
+        session.send("/pub/appointments/" + appointment.id() + "/location",
+                Map.of("latitude", 37.5100, "longitude", 127.0400));
+        Thread.sleep(1200);
+
+        // 3. 반경 내 1회 (카운트 1)
+        session.send("/pub/appointments/" + appointment.id() + "/location",
+                Map.of("latitude", 37.4979, "longitude", 127.0276));
+        Thread.sleep(1200);
+
+        // 중간에 arrival 없음 확인
+        assertThat(arrivalQueue.poll(100, TimeUnit.MILLISECONDS)).isNull();
+
+        // 4. 반경 내 2회 (카운트 2) → 도착 감지
+        session.send("/pub/appointments/" + appointment.id() + "/location",
+                Map.of("latitude", 37.4979, "longitude", 127.0276));
+
+        Map<?, ?> arrivalMsg = arrivalQueue.poll(3, TimeUnit.SECONDS);
+        assertThat(arrivalMsg).isNotNull();
+        assertThat(((Number) arrivalMsg.get("memberId")).longValue()).isEqualTo(host.getId());
+    }
+
+    @Test
+    @DisplayName("도착_감지_직후_ETA_계산을_하지_않는다")
+    void 도착_감지_직후_ETA_계산을_하지_않는다() throws Exception {
+        Member host = createMember("태양");
+        CreatedAppointment appointment = confirmedAppointment(host);
+        depart(appointment, host);
+
+        when(kakaoMobilityApiClient.getCarRoute(anyDouble(), anyDouble(), anyDouble(), anyDouble()))
+                .thenReturn(Optional.of(taxiRoute(900)));
+
+        StompSession session = connect(host, new LinkedBlockingQueue<>());
+
+        // 첫 번째 위치 (반경 내 1회) — ETA 호출됨 (카운트=1, 도착 미감지)
+        session.send("/pub/appointments/" + appointment.id() + "/location",
+                Map.of("latitude", 37.4979, "longitude", 127.0276));
+        Thread.sleep(1200);
+        verify(kakaoMobilityApiClient, times(1))
+                .getCarRoute(anyDouble(), anyDouble(), anyDouble(), anyDouble());
+
+        // 두 번째 위치 (반경 내 2회) — 도착 감지! arrived=true → ETA 미호출
+        redisTemplate.delete(etaCache.throttleKey(appointment.id(), host.getId()));
+        session.send("/pub/appointments/" + appointment.id() + "/location",
+                Map.of("latitude", 37.4979, "longitude", 127.0276));
+        Thread.sleep(500);
+
+        // 도착 감지 직후는 ETA를 계산하지 않으므로 여전히 총 1회
+        verify(kakaoMobilityApiClient, times(1))
+                .getCarRoute(anyDouble(), anyDouble(), anyDouble(), anyDouble());
+    }
+
+    @Test
+    @DisplayName("도착_채널_구독_가능_회귀_테스트")
+    void 도착_채널_구독_가능_회귀_테스트() throws Exception {
+        Member host = createMember("태양");
+        Member outsider = createMember("외부인");
+        CreatedAppointment appointment = confirmedAppointment(host);
+
+        // 참여자는 구독 가능
+        BlockingQueue<String> hostErrors = new LinkedBlockingQueue<>();
+        StompSession hostSession = connect(host, hostErrors);
+        subscribe(hostSession, "/sub/appointments/" + appointment.id() + "/arrival");
+        assertThat(hostErrors.poll(1, TimeUnit.SECONDS)).isNull();
+
+        // 비참여자는 구독 불가
+        BlockingQueue<String> outsiderErrors = new LinkedBlockingQueue<>();
+        StompSession outsiderSession = connect(outsider, outsiderErrors);
+        subscribe(outsiderSession, "/sub/appointments/" + appointment.id() + "/arrival");
+        assertThat(outsiderErrors.poll(3, TimeUnit.SECONDS)).isEqualTo("약속에 참여한 멤버만 이용할 수 있습니다.");
     }
 }

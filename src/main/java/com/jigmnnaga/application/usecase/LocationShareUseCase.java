@@ -29,9 +29,10 @@ public class LocationShareUseCase {
     private final AppointmentParticipantGetService appointmentParticipantGetService;
     private final LocationCache locationCache;
     private final EtaCalculateUseCase etaCalculateUseCase;
+    private final ArrivalDetectUseCase arrivalDetectUseCase;
     private final SimpMessagingTemplate messagingTemplate;
 
-    @Transactional(readOnly = true)
+    @Transactional
     public void updateLocation(Long memberId, Long appointmentId, LocationUpdateRequest request) {
         AppointmentParticipant me = appointmentParticipantGetService
                 .findAcceptedByAppointmentIdAndMemberId(appointmentId, memberId)
@@ -62,8 +63,13 @@ public class LocationShareUseCase {
         messagingTemplate.convertAndSend(LOCATION_TOPIC_PREFIX + appointmentId + LOCATION_TOPIC_SUFFIX,
                 new LocationBroadcastResponse(memberId, latitude, longitude, me.getDepartureStatus(), now));
 
-        // 2. ETA 계산 및 브로드캐스트 (쓰로틀 30초, 실패 시 무시)
-        etaCalculateUseCase.calculateAndBroadcast(memberId, appointmentId, latitude, longitude,
-                me.getTravelMode(), appointment, now);
+        // 2. 도착 감지 (반경 100m 이내 2회 연속 → ARRIVED로 변경, 커밋 후 /arrival 브로드캐스트)
+        boolean arrived = arrivalDetectUseCase.detectAndArrive(me, appointmentId, latitude, longitude, now);
+
+        // 3. 도착 전에만 ETA 계산 (쓰로틀 30초, 실패 시 무시)
+        if (!arrived) {
+            etaCalculateUseCase.calculateAndBroadcast(memberId, appointmentId, latitude, longitude,
+                    me.getTravelMode(), appointment, now);
+        }
     }
 }

@@ -45,3 +45,6 @@ out/
 ### Firebase ###
 *firebase-adminsdk*.json
 firebase-service-account*.json
+
+### Manual Test ###
+manual-test/

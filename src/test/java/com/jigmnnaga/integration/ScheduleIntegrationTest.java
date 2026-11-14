@@ -55,6 +55,43 @@ class ScheduleIntegrationTest extends IntegrationTestSupport {
     }
 
     @Test
+    @DisplayName("희망 장소와 가능 시간을 순서 상관없이 따로 저장할 수 있고, 생략한 항목은 기존 값이 유지된다")
+    void saveLocationAndAvailabilitiesSeparately() throws Exception {
+        Member host = createMember("태양");
+        LocalDate date = daysLater(10);
+        CreatedAppointment appointment = createAppointment(host,
+                createRequest("RANGE", List.of(date, date.plusDays(1)), List.of("강남역", "잠실역"), date.minusDays(1)));
+        String path = appointmentPath(appointment) + "/schedules/me";
+        long jamsil = appointment.locationIds().get(1);
+
+        perform(put(path), host, Map.of("preferredLocationId", jamsil)).andExpect(status().isOk());
+        perform(get(path), host)
+                .andExpect(jsonPath("$.data.submitted").value(false))
+                .andExpect(jsonPath("$.data.availabilities.length()").value(0))
+                .andExpect(jsonPath("$.data.preferredLocationId").value(jamsil));
+        perform(get(appointmentPath(appointment) + "/schedules"), host)
+                .andExpect(jsonPath("$.data.submittedCount").value(0));
+
+        perform(put(path), host, Map.of("availabilities",
+                List.of(Map.of("date", date.toString(), "startTime", "12:00", "endTime", "18:00"))))
+                .andExpect(status().isOk());
+        perform(get(path), host)
+                .andExpect(jsonPath("$.data.submitted").value(true))
+                .andExpect(jsonPath("$.data.availabilities[0].startTime").value("12:00"))
+                .andExpect(jsonPath("$.data.preferredLocationId").value(jamsil));
+
+        perform(put(path), host, Map.of("availabilities", List.of())).andExpect(status().isOk());
+        perform(get(path), host)
+                .andExpect(jsonPath("$.data.submitted").value(false))
+                .andExpect(jsonPath("$.data.availabilities.length()").value(0))
+                .andExpect(jsonPath("$.data.preferredLocationId").value(jamsil));
+
+        perform(put(path), host, Map.of())
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("EMPTY_SCHEDULE_UPDATE"));
+    }
+
+    @Test
     @DisplayName("후보 날짜 밖, 시작 시간이 종료 시간 이후, 다른 약속의 장소는 제출할 수 없다")
     void submitScheduleValidation() throws Exception {
         Member host = createMember("태양");

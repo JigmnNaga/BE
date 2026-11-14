@@ -21,8 +21,8 @@ public class ScheduleMapper {
 
     private final ProfileImageUrlResolver profileImageUrlResolver;
 
-    public List<ParticipantAvailability> toAvailabilities(ScheduleSubmitRequest request) {
-        return request.availabilities().stream()
+    public List<ParticipantAvailability> toAvailabilities(List<ScheduleSubmitRequest.AvailabilityRequest> availabilities) {
+        return availabilities.stream()
                 .map(availability -> ParticipantAvailability.builder()
                         .availableDate(availability.date())
                         .startTime(availability.startTime())

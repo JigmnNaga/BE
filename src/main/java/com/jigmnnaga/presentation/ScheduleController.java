@@ -35,7 +35,7 @@ public class ScheduleController {
     private final ScheduleStatusGetUseCase scheduleStatusGetUseCase;
     private final ScheduleHeatmapGetUseCase scheduleHeatmapGetUseCase;
 
-    @Operation(summary = "일정 선택 제출/수정", description = "후보 날짜 중 가능한 날짜별 시간과 희망 장소를 제출합니다. 기존 선택은 전체 교체됩니다.")
+    @Operation(summary = "일정 선택 제출/수정", description = "후보 날짜 중 가능한 날짜별 시간(availabilities)과 희망 장소(preferredLocationId)를 저장합니다. 둘 중 보낸 항목만 저장되고 생략한 항목은 기존 값이 유지되므로, 날짜·시간과 장소를 순서 상관없이 따로 저장할 수 있습니다. availabilities를 보내면 기존 가능 시간 전체가 교체되며 빈 목록이면 모두 해제됩니다. 둘 다 생략하면 400입니다. 가능 시간과 희망 장소를 모두 선택해야 선택 완료(submitted)로 집계됩니다.")
     @PutMapping("/me")
     public CommonResponse<Void> submitSchedule(
             @Parameter(hidden = true) @LoginMember Long memberId,

@@ -121,13 +121,15 @@ public class AppointmentParticipant extends BaseEntity {
         this.status = ParticipationStatus.DECLINED;
     }
 
-    public void updateSchedule(List<ParticipantAvailability> newAvailabilities,
-                               AppointmentCandidateLocation preferredLocation) {
+    public void updateAvailabilities(List<ParticipantAvailability> newAvailabilities) {
         availabilities.clear();
         newAvailabilities.forEach(availability -> {
             availabilities.add(availability);
             availability.assignParticipant(this);
         });
+    }
+
+    public void selectPreferredLocation(AppointmentCandidateLocation preferredLocation) {
         this.preferredLocation = preferredLocation;
     }
 
@@ -222,7 +224,7 @@ public class AppointmentParticipant extends BaseEntity {
     }
 
     public boolean hasSubmittedSchedule() {
-        return !availabilities.isEmpty();
+        return !availabilities.isEmpty() && preferredLocation != null;
     }
 
     public boolean hasDepartureLocation() {

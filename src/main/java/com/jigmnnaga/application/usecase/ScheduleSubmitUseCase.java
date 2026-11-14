@@ -29,6 +29,9 @@ public class ScheduleSubmitUseCase {
 
     @Transactional
     public void submitSchedule(Long memberId, Long appointmentId, ScheduleSubmitRequest request) {
+        if (request.availabilities() == null && request.preferredLocationId() == null) {
+            throw new BusinessException(ErrorCode.EMPTY_SCHEDULE_UPDATE);
+        }
         AppointmentParticipant participant = appointmentParticipantGetService
                 .findAcceptedByAppointmentIdAndMemberId(appointmentId, memberId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.NOT_APPOINTMENT_PARTICIPANT));
@@ -40,10 +43,13 @@ public class ScheduleSubmitUseCase {
             throw new BusinessException(ErrorCode.SCHEDULE_RESPONSE_DEADLINE_PASSED);
         }
 
-        validateAvailabilities(appointment, request.availabilities());
-        AppointmentCandidateLocation preferredLocation = getPreferredLocation(appointment, request.preferredLocationId());
-
-        participant.updateSchedule(scheduleMapper.toAvailabilities(request), preferredLocation);
+        if (request.availabilities() != null) {
+            validateAvailabilities(appointment, request.availabilities());
+            participant.updateAvailabilities(scheduleMapper.toAvailabilities(request.availabilities()));
+        }
+        if (request.preferredLocationId() != null) {
+            participant.selectPreferredLocation(getPreferredLocation(appointment, request.preferredLocationId()));
+        }
     }
 
     private void validateAvailabilities(Appointment appointment,

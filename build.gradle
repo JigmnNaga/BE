@@ -133,6 +133,9 @@ dependencies {
 	// 푸시 알림 (FCM)
 	implementation 'com.google.firebase:firebase-admin:9.9.0'
 
+	// Google 로그인 (ID 토큰 검증)
+	implementation 'com.google.api-client:google-api-client:2.7.2'
+
 	// Lombok
 	compileOnly 'org.projectlombok:lombok'
 	annotationProcessor 'org.projectlombok:lombok'

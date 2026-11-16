@@ -3,10 +3,12 @@ package com.jigmnnaga.support;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 
+import com.jigmnnaga.domain.entity.AuthProvider;
 import com.jigmnnaga.domain.entity.Member;
 import com.jigmnnaga.domain.entity.Role;
 import com.jigmnnaga.domain.repository.MemberRepository;
 import com.jigmnnaga.global.client.fcm.FcmClient;
+import com.jigmnnaga.global.client.google.GoogleAuthClient;
 import com.jigmnnaga.global.client.kakao.KakaoApiClient;
 import com.jigmnnaga.global.client.s3.S3FileClient;
 import com.jigmnnaga.global.jwt.JwtProvider;
@@ -55,11 +57,15 @@ public abstract class IntegrationTestSupport {
     @MockitoBean
     protected S3FileClient s3FileClient;
 
+    @MockitoBean
+    protected GoogleAuthClient googleAuthClient;
+
     protected final JsonMapper jsonMapper = JsonMapper.builder().build();
 
     protected Member createMember(String nickname) {
         return memberRepository.save(Member.builder()
-                .kakaoId(KAKAO_ID_SEQUENCE.incrementAndGet())
+                .provider(AuthProvider.KAKAO)
+                .providerId(String.valueOf(KAKAO_ID_SEQUENCE.incrementAndGet()))
                 .nickname(nickname)
                 .role(Role.USER)
                 .build());

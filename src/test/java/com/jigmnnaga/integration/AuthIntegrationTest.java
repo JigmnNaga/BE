@@ -6,10 +6,17 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
+import com.jigmnnaga.application.exception.BusinessException;
+import com.jigmnnaga.application.exception.ErrorCode;
+import com.jigmnnaga.domain.entity.AuthProvider;
 import com.jigmnnaga.domain.entity.Member;
 import com.jigmnnaga.domain.service.RefreshTokenSaveService;
+import com.jigmnnaga.global.client.google.GoogleUserInfo;
 import com.jigmnnaga.global.jwt.TokenHasher;
 import com.jigmnnaga.support.IntegrationTestSupport;
 import java.util.Map;
@@ -67,6 +74,66 @@ class AuthIntegrationTest extends IntegrationTestSupport {
     }
 
     @Test
+    @DisplayName("구글 ID 토큰으로 처음 로그인하면 가입되고, 다시 로그인하면 같은 회원으로 로그인되며 카카오 회원과는 별개다")
+    void googleLogin() throws Exception {
+        String subject = "google-" + System.nanoTime();
+        when(googleAuthClient.verify("google-id-token"))
+                .thenReturn(new GoogleUserInfo(subject, "구글유저", "google@example.com", "https://lh3.example.com/p.jpg"));
+
+        JsonNode first = data(perform(post("/api/v1/auth/google/login"), null, Map.of("idToken", "google-id-token"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.isNewMember").value(true)));
+        long memberId = first.get("memberId").asLong();
+
+        perform(post("/api/v1/auth/google/login"), null, Map.of("idToken", "google-id-token"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.isNewMember").value(false))
+                .andExpect(jsonPath("$.data.memberId").value(memberId));
+
+        mockMvc.perform(get("/api/v1/members/me").header("Authorization", "Bearer " + first.get("accessToken").asString()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.nickname").value("구글유저"))
+                .andExpect(jsonPath("$.data.email").value("google@example.com"))
+                .andExpect(jsonPath("$.data.profileImageUrl").value("https://lh3.example.com/p.jpg"));
+
+        Member member = memberRepository.findById(memberId).orElseThrow();
+        assertThat(member.getProvider()).isEqualTo(AuthProvider.GOOGLE);
+        assertThat(member.getProviderId()).isEqualTo(subject);
+        assertThat(memberRepository.findByProviderAndProviderId(AuthProvider.KAKAO, subject)).isEmpty();
+    }
+
+    @Test
+    @DisplayName("유효하지 않은 구글 ID 토큰이면 401, 토큰이 비어 있으면 400을 반환한다")
+    void googleLoginWithInvalidToken() throws Exception {
+        when(googleAuthClient.verify("bad-token")).thenThrow(new BusinessException(ErrorCode.GOOGLE_TOKEN_INVALID));
+
+        perform(post("/api/v1/auth/google/login"), null, Map.of("idToken", "bad-token"))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.code").value("GOOGLE_TOKEN_INVALID"));
+        perform(post("/api/v1/auth/google/login"), null, Map.of("idToken", " "))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @DisplayName("구글 회원이 탈퇴하면 카카오 연결 끊기를 호출하지 않고, 같은 구글 계정으로 다시 가입할 수 있다")
+    void googleMemberWithdraw() throws Exception {
+        String subject = "google-" + System.nanoTime();
+        when(googleAuthClient.verify("google-id-token"))
+                .thenReturn(new GoogleUserInfo(subject, null, "rejoin@example.com", null));
+        JsonNode login = data(perform(post("/api/v1/auth/google/login"), null, Map.of("idToken", "google-id-token")));
+        long memberId = login.get("memberId").asLong();
+        assertThat(memberRepository.findById(memberId).orElseThrow().getNickname()).isEqualTo("rejoin");
+
+        mockMvc.perform(delete("/api/v1/members/me").header("Authorization", "Bearer " + login.get("accessToken").asString()))
+                .andExpect(status().isOk());
+
+        verify(kakaoApiClient, never()).unlink(anyLong());
+        perform(post("/api/v1/auth/google/login"), null, Map.of("idToken", "google-id-token"))
+                .andExpect(jsonPath("$.data.isNewMember").value(true))
+                .andExpect(jsonPath("$.data.memberId").value(org.hamcrest.Matchers.not(memberId)));
+    }
+
+    @Test
     @DisplayName("로그아웃하면 Refresh Token으로 재발급할 수 없다")
     void logout() throws Exception {
         Member member = createMember("나");
@@ -91,7 +158,7 @@ class AuthIntegrationTest extends IntegrationTestSupport {
         accept(threeMembers, second);
 
         perform(delete("/api/v1/members/me"), host).andExpect(status().isOk());
-        verify(kakaoApiClient).unlink(host.getKakaoId());
+        verify(kakaoApiClient).unlink(Long.valueOf(host.getProviderId()));
 
         perform(get("/api/v1/notifications/unread-count"), host).andExpect(status().isUnauthorized());
         perform(get(appointmentPath(twoMembers)), first).andExpect(status().isForbidden());

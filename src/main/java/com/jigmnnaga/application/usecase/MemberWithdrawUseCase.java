@@ -51,7 +51,9 @@ public class MemberWithdrawUseCase {
         List<AppointmentParticipant> participations =
                 appointmentParticipantGetService.findAllWithAppointmentByMemberId(memberId);
 
-        kakaoApiClient.unlink(member.getKakaoId());
+        if (member.isKakaoMember()) {
+            kakaoApiClient.unlink(Long.valueOf(member.getProviderId()));
+        }
 
         participations.forEach(participation -> cleanUpParticipation(participation, now));
         refreshTokenDeleteService.deleteByMemberId(memberId);

@@ -56,6 +56,14 @@ public class LocationCache {
         }
     }
 
+    public void remove(Long appointmentId, Long memberId) {
+        try {
+            redisTemplate.opsForHash().delete(key(appointmentId), field(memberId));
+        } catch (Exception e) {
+            log.warn("위치 캐시 삭제 실패: {}", e.getMessage());
+        }
+    }
+
     private String key(Long appointmentId) {
         return KEY_PREFIX + appointmentId;
     }

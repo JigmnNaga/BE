@@ -1,6 +1,8 @@
 package com.jigmnnaga.application.usecase;
 
 import com.jigmnnaga.application.dto.response.ArrivalBroadcastResponse;
+import com.jigmnnaga.application.dto.response.LocationSharingEndedResponse.Reason;
+import com.jigmnnaga.application.event.LocationSharingEndPublisher;
 import com.jigmnnaga.application.exception.BusinessException;
 import com.jigmnnaga.application.exception.ErrorCode;
 import com.jigmnnaga.domain.entity.Appointment;
@@ -35,6 +37,7 @@ public class ManualArrivalUseCase {
     private final AppointmentParticipantGetService appointmentParticipantGetService;
     private final ArrivalProximityCache arrivalProximityCache;
     private final SimpMessagingTemplate messagingTemplate;
+    private final LocationSharingEndPublisher locationSharingEndPublisher;
 
     @Transactional
     public void arrive(Long memberId, Long appointmentId) {
@@ -62,6 +65,7 @@ public class ManualArrivalUseCase {
             arrivalProximityCache.resetCount(appointmentId, memberId);
 
             LocalDateTime now = LocalDateTime.now(TimeZones.SEOUL);
+            locationSharingEndPublisher.publishAfterCommit(appointmentId, memberId, Reason.ARRIVED, now);
 
             // 커밋 성공 후 브로드캐스트 (롤백 시 실행되지 않음)
             TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {

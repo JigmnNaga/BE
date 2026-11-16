@@ -5,8 +5,10 @@ import static org.mockito.ArgumentMatchers.anyDouble;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.jigmnnaga.application.dto.response.kakao.KakaoCarRouteResponse;
@@ -867,5 +869,101 @@ class LocationIntegrationTest extends IntegrationTestSupport {
         Map<?, ?> arrivalMsg = arrivalQueue.poll(3, TimeUnit.SECONDS);
         assertThat(arrivalMsg).isNotNull();
         assertThat(((Number) arrivalMsg.get("memberId")).longValue()).isEqualTo(host.getId());
+    }
+
+    // ── 위치 공유 종료 테스트 ─────────────────────────────────────────────────
+
+    private Object cachedLocation(CreatedAppointment appointment, Member member) {
+        return redisTemplate.opsForHash().get("location:appointment:" + appointment.id(), String.valueOf(member.getId()));
+    }
+
+    @Test
+    @DisplayName("위치 공유를 끄면 최신 위치가 지워지고 종료 이벤트가 전달되며, 다시 켜기 전까지 위치를 보낼 수 없다")
+    void stopAndResumeLocationSharing() throws Exception {
+        Member host = createMember("태양");
+        Member member = createMember("태희");
+        CreatedAppointment appointment = confirmedAppointment(host);
+        accept(appointment, member);
+        depart(appointment, host);
+        String sharingPath = appointmentPath(appointment) + "/location-sharing";
+
+        StompSession hostSession = connect(host, new LinkedBlockingQueue<>());
+        StompSession memberSession = connect(member, new LinkedBlockingQueue<>());
+        BlockingQueue<Map<?, ?>> endQueue = subscribe(memberSession,
+                "/sub/appointments/" + appointment.id() + "/location-end");
+        BlockingQueue<Map<?, ?>> errorQueue = subscribe(hostSession, "/user/queue/errors");
+        BlockingQueue<Map<?, ?>> locationQueue = subscribe(memberSession,
+                "/sub/appointments/" + appointment.id() + "/location");
+
+        hostSession.send("/pub/appointments/" + appointment.id() + "/location",
+                Map.of("latitude", 37.51, "longitude", 127.05));
+        assertThat(locationQueue.poll(3, TimeUnit.SECONDS)).isNotNull();
+        assertThat(cachedLocation(appointment, host)).isNotNull();
+
+        perform(patch(sharingPath), host, Map.of("enabled", false))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.enabled").value(false));
+
+        Map<?, ?> ended = endQueue.poll(3, TimeUnit.SECONDS);
+        assertThat(ended).isNotNull();
+        assertThat(((Number) ended.get("memberId")).longValue()).isEqualTo(host.getId());
+        assertThat(ended.get("reason")).isEqualTo("USER_REQUEST");
+        assertThat(ended.get("endedAt")).isNotNull();
+        assertThat(cachedLocation(appointment, host)).isNull();
+
+        Thread.sleep(1100);
+        hostSession.send("/pub/appointments/" + appointment.id() + "/location",
+                Map.of("latitude", 37.51, "longitude", 127.05));
+        Map<?, ?> error = errorQueue.poll(3, TimeUnit.SECONDS);
+        assertThat(error).isNotNull();
+        assertThat(error.get("code")).isEqualTo("LOCATION_SHARING_STOPPED");
+
+        perform(patch(sharingPath), host, Map.of("enabled", true))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.enabled").value(true));
+        hostSession.send("/pub/appointments/" + appointment.id() + "/location",
+                Map.of("latitude", 37.51, "longitude", 127.05));
+        assertThat(locationQueue.poll(3, TimeUnit.SECONDS)).isNotNull();
+    }
+
+    @Test
+    @DisplayName("도착하면 위치 공유가 종료되어 최신 위치가 지워지고 ARRIVED 종료 이벤트가 전달되며, 다시 켤 수 없다")
+    void arrivalEndsLocationSharing() throws Exception {
+        Member host = createMember("태양");
+        Member member = createMember("태희");
+        CreatedAppointment appointment = confirmedAppointment(host);
+        accept(appointment, member);
+        depart(appointment, host);
+
+        StompSession hostSession = connect(host, new LinkedBlockingQueue<>());
+        StompSession memberSession = connect(member, new LinkedBlockingQueue<>());
+        BlockingQueue<Map<?, ?>> endQueue = subscribe(memberSession,
+                "/sub/appointments/" + appointment.id() + "/location-end");
+        hostSession.send("/pub/appointments/" + appointment.id() + "/location",
+                Map.of("latitude", 37.51, "longitude", 127.05));
+        Thread.sleep(500);
+
+        perform(post(appointmentPath(appointment) + "/travel/arrival"), host).andExpect(status().isOk());
+
+        Map<?, ?> ended = endQueue.poll(3, TimeUnit.SECONDS);
+        assertThat(ended).isNotNull();
+        assertThat(((Number) ended.get("memberId")).longValue()).isEqualTo(host.getId());
+        assertThat(ended.get("reason")).isEqualTo("ARRIVED");
+        assertThat(cachedLocation(appointment, host)).isNull();
+
+        perform(patch(appointmentPath(appointment) + "/location-sharing"), host, Map.of("enabled", true))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value("ALREADY_ARRIVED"));
+    }
+
+    @Test
+    @DisplayName("약속 참여자가 아니면 위치 공유 설정을 바꿀 수 없다")
+    void nonParticipantCannotChangeLocationSharing() throws Exception {
+        Member host = createMember("태양");
+        Member outsider = createMember("외부인");
+        CreatedAppointment appointment = confirmedAppointment(host);
+
+        perform(patch(appointmentPath(appointment) + "/location-sharing"), outsider, Map.of("enabled", false))
+                .andExpect(status().isForbidden());
     }
 }

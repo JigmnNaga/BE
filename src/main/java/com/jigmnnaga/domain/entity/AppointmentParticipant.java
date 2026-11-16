@@ -106,6 +106,10 @@ public class AppointmentParticipant extends BaseEntity {
     @Column(name = "departure_status", nullable = false, length = 30)
     private DepartureStatus departureStatus = DepartureStatus.BEFORE_DEPARTURE;
 
+    @ColumnDefault("true")
+    @Column(nullable = false)
+    private boolean locationSharingEnabled = true;
+
     @Builder
     private AppointmentParticipant(Member member, ParticipantRole role, ParticipationStatus status) {
         this.member = member;
@@ -168,6 +172,17 @@ public class AppointmentParticipant extends BaseEntity {
             throw new BusinessException(ErrorCode.ALREADY_ARRIVED);
         }
         this.departureStatus = DepartureStatus.ARRIVED;
+    }
+
+    public void stopLocationSharing() {
+        this.locationSharingEnabled = false;
+    }
+
+    public void resumeLocationSharing() {
+        if (departureStatus == DepartureStatus.ARRIVED) {
+            throw new BusinessException(ErrorCode.ALREADY_ARRIVED);
+        }
+        this.locationSharingEnabled = true;
     }
 
     public void updateNotificationEnabled(boolean notificationEnabled) {

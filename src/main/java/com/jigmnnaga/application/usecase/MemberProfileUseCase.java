@@ -1,6 +1,5 @@
 package com.jigmnnaga.application.usecase;
 
-import com.jigmnnaga.application.dto.request.DefaultLocationRequest;
 import com.jigmnnaga.application.dto.request.ProfileImageUploadUrlRequest;
 import com.jigmnnaga.application.dto.request.ProfileUpdateRequest;
 import com.jigmnnaga.application.dto.response.MyInfoResponse;
@@ -11,6 +10,7 @@ import com.jigmnnaga.application.exception.ErrorCode;
 import com.jigmnnaga.application.mapper.MemberMapper;
 import com.jigmnnaga.domain.entity.Member;
 import com.jigmnnaga.domain.service.MemberGetService;
+import com.jigmnnaga.domain.service.MemberLocationGetService;
 import com.jigmnnaga.global.client.s3.S3FileClient;
 import com.jigmnnaga.global.client.s3.S3FileClient.PresignedUpload;
 import com.jigmnnaga.global.util.TimeZones;
@@ -35,6 +35,7 @@ public class MemberProfileUseCase {
             "image/webp", "webp");
 
     private final MemberGetService memberGetService;
+    private final MemberLocationGetService memberLocationGetService;
     private final MemberMapper memberMapper;
     private final S3FileClient s3FileClient;
     private final ApplicationEventPublisher applicationEventPublisher;
@@ -71,7 +72,7 @@ public class MemberProfileUseCase {
             discardProfileImage(member);
             member.changeProfileImage(request.profileImageKey());
         }
-        return memberMapper.toMyInfoResponse(member);
+        return memberMapper.toMyInfoResponse(member, memberLocationGetService.findAllByMemberId(memberId));
     }
 
     @Transactional
@@ -79,18 +80,6 @@ public class MemberProfileUseCase {
         Member member = getMember(memberId);
         discardProfileImage(member);
         member.removeProfileImage();
-    }
-
-    @Transactional
-    public MyInfoResponse updateDefaultLocation(Long memberId, DefaultLocationRequest request) {
-        Member member = getMember(memberId);
-        member.updateDefaultLocation(request.name().strip(), request.address(), request.latitude(), request.longitude());
-        return memberMapper.toMyInfoResponse(member);
-    }
-
-    @Transactional
-    public void deleteDefaultLocation(Long memberId) {
-        getMember(memberId).clearDefaultLocation();
     }
 
     private void validateUploadedImage(Long memberId, String key) {

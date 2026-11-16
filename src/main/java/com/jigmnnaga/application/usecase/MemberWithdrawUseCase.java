@@ -13,6 +13,7 @@ import com.jigmnnaga.domain.service.AppointmentDeleteService;
 import com.jigmnnaga.domain.service.AppointmentParticipantGetService;
 import com.jigmnnaga.domain.service.DeviceTokenDeleteService;
 import com.jigmnnaga.domain.service.MemberGetService;
+import com.jigmnnaga.domain.service.MemberLocationDeleteService;
 import com.jigmnnaga.domain.service.NotificationDeleteService;
 import com.jigmnnaga.domain.service.RefreshTokenDeleteService;
 import com.jigmnnaga.global.client.kakao.KakaoApiClient;
@@ -37,6 +38,7 @@ public class MemberWithdrawUseCase {
     private final KakaoApiClient kakaoApiClient;
     private final NotificationDeleteService notificationDeleteService;
     private final DeviceTokenDeleteService deviceTokenDeleteService;
+    private final MemberLocationDeleteService memberLocationDeleteService;
     private final AppointmentEventPublisher appointmentEventPublisher;
     private final AppointmentEventFactory appointmentEventFactory;
     private final ApplicationEventPublisher applicationEventPublisher;
@@ -55,6 +57,7 @@ public class MemberWithdrawUseCase {
         refreshTokenDeleteService.deleteByMemberId(memberId);
         notificationDeleteService.deleteAllByMemberId(memberId);
         deviceTokenDeleteService.deleteAllByMemberId(memberId);
+        memberLocationDeleteService.deleteAllByMemberId(memberId);
         if (member.getProfileImageKey() != null) {
             applicationEventPublisher.publishEvent(new ProfileImageDiscardedEvent(member.getProfileImageKey()));
         }

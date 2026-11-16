@@ -19,6 +19,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.jigmnnaga.domain.entity.Member;
+import com.jigmnnaga.domain.repository.MemberLocationRepository;
 import com.jigmnnaga.global.client.s3.S3FileClient.PresignedUpload;
 import com.jigmnnaga.support.IntegrationTestSupport;
 import java.time.Duration;
@@ -26,8 +27,12 @@ import java.time.Instant;
 import java.util.Map;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
 
 class MemberIntegrationTest extends IntegrationTestSupport {
+
+    @Autowired
+    private MemberLocationRepository memberLocationRepository;
 
     private String uploadImage(Member member) throws Exception {
         when(s3FileClient.presignUpload(anyString(), eq("image/png"), anyLong(), any(Duration.class)))
@@ -41,8 +46,12 @@ class MemberIntegrationTest extends IntegrationTestSupport {
         return key;
     }
 
+    private Map<String, Object> location(String name, String address, double latitude, double longitude) {
+        return Map.of("name", name, "address", address, "latitude", latitude, "longitude", longitude);
+    }
+
     @Test
-    @DisplayName("내 정보 조회 시 닉네임, 프로필 이미지, 기본 위치를 반환한다")
+    @DisplayName("내 정보 조회 시 닉네임, 프로필 이미지, 기본 위치 목록을 반환한다")
     void getMyInfo() throws Exception {
         Member member = createMember("태양");
 
@@ -51,21 +60,75 @@ class MemberIntegrationTest extends IntegrationTestSupport {
                 .andExpect(jsonPath("$.data.memberId").value(member.getId()))
                 .andExpect(jsonPath("$.data.nickname").value("태양"))
                 .andExpect(jsonPath("$.data.profileImageUrl").doesNotExist())
-                .andExpect(jsonPath("$.data.defaultLocation").doesNotExist());
+                .andExpect(jsonPath("$.data.locations.length()").value(0));
 
-        perform(put("/api/v1/members/me/default-location"), member, Map.of(
-                "name", "우리집", "address", "서울 강남구 테헤란로 152", "latitude", 37.4979420, "longitude", 127.0276210))
+        perform(post("/api/v1/members/me/locations"), member, location("집", "서울 강남구 테헤란로 152", 37.4979420, 127.0276210))
+                .andExpect(status().isOk());
+
+        perform(get("/api/v1/members/me"), member)
+                .andExpect(jsonPath("$.data.locations.length()").value(1))
+                .andExpect(jsonPath("$.data.locations[0].name").value("집"))
+                .andExpect(jsonPath("$.data.locations[0].latitude").value(37.4979420));
+    }
+
+    @Test
+    @DisplayName("기본 위치를 여러 개 등록·수정·삭제하고 목록으로 조회할 수 있다")
+    void manageLocations() throws Exception {
+        Member member = createMember("태양");
+        String path = "/api/v1/members/me/locations";
+
+        long homeId = data(perform(post(path), member, location("집", "서울 강남구 테헤란로 152", 37.4979420, 127.0276210))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.defaultLocation.name").value("우리집"));
+                .andExpect(jsonPath("$.data.name").value("집")))
+                .get("locationId").asLong();
+        long officeId = data(perform(post(path), member, location("  회사  ", "서울 중구 세종대로 110", 37.5662952, 126.9779451))
+                .andExpect(jsonPath("$.data.name").value("회사")))
+                .get("locationId").asLong();
 
-        perform(get("/api/v1/members/me"), member)
-                .andExpect(jsonPath("$.data.defaultLocation.address").value("서울 강남구 테헤란로 152"))
-                .andExpect(jsonPath("$.data.defaultLocation.latitude").value(37.4979420))
-                .andExpect(jsonPath("$.data.defaultLocation.longitude").value(127.0276210));
+        perform(get(path), member)
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.length()").value(2))
+                .andExpect(jsonPath("$.data[0].locationId").value(homeId))
+                .andExpect(jsonPath("$.data[1].locationId").value(officeId))
+                .andExpect(jsonPath("$.data[1].address").value("서울 중구 세종대로 110"));
 
-        perform(delete("/api/v1/members/me/default-location"), member).andExpect(status().isOk());
-        perform(get("/api/v1/members/me"), member)
-                .andExpect(jsonPath("$.data.defaultLocation").doesNotExist());
+        perform(put(path + "/" + officeId), member, location("학교", "서울 관악구 관악로 1", 37.4599, 126.9519))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.locationId").value(officeId))
+                .andExpect(jsonPath("$.data.name").value("학교"))
+                .andExpect(jsonPath("$.data.longitude").value(126.9519));
+
+        perform(delete(path + "/" + homeId), member).andExpect(status().isOk());
+        perform(get(path), member)
+                .andExpect(jsonPath("$.data.length()").value(1))
+                .andExpect(jsonPath("$.data[0].name").value("학교"));
+    }
+
+    @Test
+    @DisplayName("다른 회원의 위치는 수정·삭제할 수 없고, 기본 위치는 최대 10개까지 저장할 수 있다")
+    void locationOwnershipAndLimit() throws Exception {
+        Member member = createMember("태양");
+        Member other = createMember("태희");
+        String path = "/api/v1/members/me/locations";
+        long otherLocationId = data(perform(post(path), other, location("집", "서울", 37.5, 127.0)))
+                .get("locationId").asLong();
+
+        perform(put(path + "/" + otherLocationId), member, location("내 집", "서울", 37.5, 127.0))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code").value("MEMBER_LOCATION_NOT_FOUND"));
+        perform(delete(path + "/" + otherLocationId), member)
+                .andExpect(status().isNotFound());
+        perform(get(path), other).andExpect(jsonPath("$.data[0].name").value("집"));
+
+        for (int i = 0; i < 10; i++) {
+            perform(post(path), member, location("위치" + i, "서울", 37.5, 127.0)).andExpect(status().isOk());
+        }
+        perform(post(path), member, location("11번째", "서울", 37.5, 127.0))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("MEMBER_LOCATION_LIMIT_EXCEEDED"));
+        perform(post(path), member, Map.of("name", "좌표 없음"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("INVALID_INPUT_VALUE"));
     }
 
     @Test
@@ -143,14 +206,14 @@ class MemberIntegrationTest extends IntegrationTestSupport {
         Member member = createMember("태양");
         String key = uploadImage(member);
         perform(patch("/api/v1/members/me/profile"), member, Map.of("profileImageKey", key)).andExpect(status().isOk());
-        perform(put("/api/v1/members/me/default-location"), member, Map.of(
-                "name", "우리집", "latitude", 37.5, "longitude", 127.0)).andExpect(status().isOk());
+        perform(post("/api/v1/members/me/locations"), member, Map.of(
+                "name", "집", "latitude", 37.5, "longitude", 127.0)).andExpect(status().isOk());
 
         perform(delete("/api/v1/members/me"), member).andExpect(status().isOk());
 
         verify(s3FileClient, timeout(3000)).delete(key);
         Member withdrawn = memberRepository.findById(member.getId()).orElseThrow();
         assertThat(withdrawn.getProfileImageKey()).isNull();
-        assertThat(withdrawn.hasDefaultLocation()).isFalse();
+        assertThat(memberLocationRepository.findAllByMemberIdOrderByIdAsc(member.getId())).isEmpty();
     }
 }

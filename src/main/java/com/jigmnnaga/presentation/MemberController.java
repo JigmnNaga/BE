@@ -1,11 +1,13 @@
 package com.jigmnnaga.presentation;
 
-import com.jigmnnaga.application.dto.request.DefaultLocationRequest;
+import com.jigmnnaga.application.dto.request.MemberLocationRequest;
 import com.jigmnnaga.application.dto.request.ProfileImageUploadUrlRequest;
 import com.jigmnnaga.application.dto.request.ProfileUpdateRequest;
+import com.jigmnnaga.application.dto.response.MemberLocationResponse;
 import com.jigmnnaga.application.dto.response.MyInfoResponse;
 import com.jigmnnaga.application.dto.response.ProfileImageUploadUrlResponse;
 import com.jigmnnaga.application.usecase.MemberGetUseCase;
+import com.jigmnnaga.application.usecase.MemberLocationUseCase;
 import com.jigmnnaga.application.usecase.MemberProfileUseCase;
 import com.jigmnnaga.application.usecase.MemberWithdrawUseCase;
 import com.jigmnnaga.global.auth.LoginMember;
@@ -15,10 +17,12 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -32,10 +36,11 @@ import org.springframework.web.bind.annotation.RestController;
 public class MemberController {
 
     private final MemberGetUseCase memberGetUseCase;
+    private final MemberLocationUseCase memberLocationUseCase;
     private final MemberProfileUseCase memberProfileUseCase;
     private final MemberWithdrawUseCase memberWithdrawUseCase;
 
-    @Operation(summary = "내 정보 조회", description = "닉네임, 프로필 이미지, 이메일, 기본 위치를 조회합니다. 직접 올린 프로필 이미지는 1시간 동안 유효한 임시 URL로 내려가므로 URL을 저장하지 말고 필요할 때 다시 조회하세요. 기본 위치가 없으면 defaultLocation은 null입니다.")
+    @Operation(summary = "내 정보 조회", description = "닉네임, 프로필 이미지, 이메일, 기본 위치 목록을 조회합니다. 직접 올린 프로필 이미지는 1시간 동안 유효한 임시 URL로 내려가므로 URL을 저장하지 말고 필요할 때 다시 조회하세요. 기본 위치가 없으면 locations는 빈 목록입니다.")
     @GetMapping("/me")
     public CommonResponse<MyInfoResponse> getMyInfo(@Parameter(hidden = true) @LoginMember Long memberId) {
         MyInfoResponse response = memberGetUseCase.getMyInfo(memberId);
@@ -69,24 +74,47 @@ public class MemberController {
         return CommonResponse.success(ResponseMessage.PROFILE_IMAGE_DELETE_SUCCESS);
     }
 
-    @Operation(summary = "기본 위치 등록/수정", description = "자주 출발하는 장소 1곳을 기본 위치로 저장합니다. 이미 있으면 덮어씁니다.")
-    @PutMapping("/me/default-location")
-    public CommonResponse<MyInfoResponse> updateDefaultLocation(
-            @Parameter(hidden = true) @LoginMember Long memberId,
-            @RequestBody @Valid DefaultLocationRequest request
+    @Operation(summary = "기본 위치 목록 조회", description = "집, 회사, 학교 등 저장한 기본 위치 목록을 등록한 순서대로 조회합니다.")
+    @GetMapping("/me/locations")
+    public CommonResponse<List<MemberLocationResponse>> getLocations(
+            @Parameter(hidden = true) @LoginMember Long memberId
     ) {
-        MyInfoResponse response = memberProfileUseCase.updateDefaultLocation(memberId, request);
-        return CommonResponse.success(ResponseMessage.DEFAULT_LOCATION_UPDATE_SUCCESS, response);
+        List<MemberLocationResponse> response = memberLocationUseCase.getLocations(memberId);
+        return CommonResponse.success(ResponseMessage.MEMBER_LOCATIONS_GET_SUCCESS, response);
     }
 
-    @Operation(summary = "기본 위치 삭제", description = "저장한 기본 위치를 삭제합니다.")
-    @DeleteMapping("/me/default-location")
-    public CommonResponse<Void> deleteDefaultLocation(@Parameter(hidden = true) @LoginMember Long memberId) {
-        memberProfileUseCase.deleteDefaultLocation(memberId);
-        return CommonResponse.success(ResponseMessage.DEFAULT_LOCATION_DELETE_SUCCESS);
+    @Operation(summary = "기본 위치 등록", description = "자주 사용하는 위치를 등록합니다. 장소 검색 결과에서 고른 장소명·주소·좌표를 보내면 됩니다. 최대 10개까지 저장할 수 있습니다.")
+    @PostMapping("/me/locations")
+    public CommonResponse<MemberLocationResponse> createLocation(
+            @Parameter(hidden = true) @LoginMember Long memberId,
+            @RequestBody @Valid MemberLocationRequest request
+    ) {
+        MemberLocationResponse response = memberLocationUseCase.createLocation(memberId, request);
+        return CommonResponse.success(ResponseMessage.MEMBER_LOCATION_CREATE_SUCCESS, response);
     }
 
-    @Operation(summary = "회원 탈퇴", description = "회원 정보를 익명화하고 카카오 연결을 끊습니다. 응답 대기 중인 초대와 다가오는 약속 참여는 삭제됩니다. 다가오는 약속의 방장인 경우 참여자가 2명 이하면 약속방을 삭제하고, 3명 이상이면 가장 먼저 참여한 멤버에게 방장을 위임합니다. 지난 약속·취소된 약속의 기록은 '탈퇴한 사용자'로 보존됩니다. 직접 올린 프로필 이미지와 기본 위치도 삭제됩니다.")
+    @Operation(summary = "기본 위치 수정", description = "저장한 위치의 이름, 주소, 좌표를 수정합니다. 모든 항목을 보내야 합니다.")
+    @PutMapping("/me/locations/{locationId}")
+    public CommonResponse<MemberLocationResponse> updateLocation(
+            @Parameter(hidden = true) @LoginMember Long memberId,
+            @PathVariable Long locationId,
+            @RequestBody @Valid MemberLocationRequest request
+    ) {
+        MemberLocationResponse response = memberLocationUseCase.updateLocation(memberId, locationId, request);
+        return CommonResponse.success(ResponseMessage.MEMBER_LOCATION_UPDATE_SUCCESS, response);
+    }
+
+    @Operation(summary = "기본 위치 삭제", description = "저장한 위치를 삭제합니다.")
+    @DeleteMapping("/me/locations/{locationId}")
+    public CommonResponse<Void> deleteLocation(
+            @Parameter(hidden = true) @LoginMember Long memberId,
+            @PathVariable Long locationId
+    ) {
+        memberLocationUseCase.deleteLocation(memberId, locationId);
+        return CommonResponse.success(ResponseMessage.MEMBER_LOCATION_DELETE_SUCCESS);
+    }
+
+    @Operation(summary = "회원 탈퇴", description = "회원 정보를 익명화하고 카카오 연결을 끊습니다. 응답 대기 중인 초대와 다가오는 약속 참여는 삭제됩니다. 다가오는 약속의 방장인 경우 참여자가 2명 이하면 약속방을 삭제하고, 3명 이상이면 가장 먼저 참여한 멤버에게 방장을 위임합니다. 지난 약속·취소된 약속의 기록은 '탈퇴한 사용자'로 보존됩니다. 직접 올린 프로필 이미지와 기본 위치 목록도 삭제됩니다.")
     @DeleteMapping("/me")
     public CommonResponse<Void> withdraw(@Parameter(hidden = true) @LoginMember Long memberId) {
         memberWithdrawUseCase.withdraw(memberId);

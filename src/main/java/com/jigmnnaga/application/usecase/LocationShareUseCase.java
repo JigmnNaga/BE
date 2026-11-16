@@ -48,6 +48,9 @@ public class LocationShareUseCase {
         if (me.getDepartureStatus() != DepartureStatus.DEPARTED) {
             throw new BusinessException(ErrorCode.NOT_DEPARTED);
         }
+        if (!me.isLocationSharingEnabled()) {
+            throw new BusinessException(ErrorCode.LOCATION_SHARING_STOPPED);
+        }
 
         LocalDateTime now = LocalDateTime.now(TimeZones.SEOUL);
         Optional<LocalDateTime> lastUpdated = locationCache.getLastUpdatedAt(appointmentId, memberId);

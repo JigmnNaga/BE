@@ -1,6 +1,8 @@
 package com.jigmnnaga.application.usecase;
 
 import com.jigmnnaga.application.dto.response.ArrivalBroadcastResponse;
+import com.jigmnnaga.application.dto.response.LocationSharingEndedResponse.Reason;
+import com.jigmnnaga.application.event.LocationSharingEndPublisher;
 import com.jigmnnaga.domain.entity.AppointmentParticipant;
 import com.jigmnnaga.domain.entity.DepartureStatus;
 import com.jigmnnaga.global.cache.ArrivalProximityCache;
@@ -33,6 +35,7 @@ public class ArrivalDetectUseCase {
 
     private final ArrivalProximityCache arrivalProximityCache;
     private final SimpMessagingTemplate messagingTemplate;
+    private final LocationSharingEndPublisher locationSharingEndPublisher;
 
     /**
      * 현재 위치를 기준으로 도착 여부를 감지합니다.
@@ -74,6 +77,7 @@ public class ArrivalDetectUseCase {
         try {
             participant.arrive(); // JPA dirty checking → @Transactional 커밋 시 자동 반영
             arrivalProximityCache.resetCount(appointmentId, memberId);
+            locationSharingEndPublisher.publishAfterCommit(appointmentId, memberId, Reason.ARRIVED, now);
 
             // 커밋 성공 후 브로드캐스트 (롤백 시 실행되지 않음)
             TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {

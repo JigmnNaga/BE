@@ -9,6 +9,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.jigmnnaga.application.dto.response.ArrivalBroadcastResponse;
+import com.jigmnnaga.application.event.LocationSharingEndPublisher;
 import com.jigmnnaga.domain.entity.Appointment;
 import com.jigmnnaga.domain.entity.AppointmentParticipant;
 import com.jigmnnaga.domain.entity.DepartureStatus;
@@ -32,6 +33,9 @@ class ArrivalDetectUseCaseTest {
 
     @Mock
     private SimpMessagingTemplate messagingTemplate;
+
+    @Mock
+    private LocationSharingEndPublisher locationSharingEndPublisher;
 
     @InjectMocks
     private ArrivalDetectUseCase useCase;

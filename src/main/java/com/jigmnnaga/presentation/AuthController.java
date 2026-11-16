@@ -1,9 +1,11 @@
 package com.jigmnnaga.presentation;
 
+import com.jigmnnaga.application.dto.request.GoogleLoginRequest;
 import com.jigmnnaga.application.dto.request.KakaoLoginRequest;
 import com.jigmnnaga.application.dto.request.TokenReissueRequest;
 import com.jigmnnaga.application.dto.response.LoginResponse;
 import com.jigmnnaga.application.dto.response.TokenResponse;
+import com.jigmnnaga.application.usecase.GoogleLoginUseCase;
 import com.jigmnnaga.application.usecase.KakaoLoginUseCase;
 import com.jigmnnaga.application.usecase.LogoutUseCase;
 import com.jigmnnaga.application.usecase.TokenReissueUseCase;
@@ -27,6 +29,7 @@ import org.springframework.web.bind.annotation.RestController;
 public class AuthController {
 
     private final KakaoLoginUseCase kakaoLoginUseCase;
+    private final GoogleLoginUseCase googleLoginUseCase;
     private final TokenReissueUseCase tokenReissueUseCase;
     private final LogoutUseCase logoutUseCase;
 
@@ -34,6 +37,13 @@ public class AuthController {
     @PostMapping("/kakao/login")
     public CommonResponse<LoginResponse> kakaoLogin(@RequestBody @Valid KakaoLoginRequest request) {
         LoginResponse response = kakaoLoginUseCase.login(request);
+        return CommonResponse.success(ResponseMessage.LOGIN_SUCCESS, response);
+    }
+
+    @Operation(summary = "구글 로그인", description = "안드로이드 구글 로그인으로 받은 ID 토큰으로 로그인 및 자동 회원가입을 처리하고 자체 JWT를 발급합니다. 앱에서 구글 로그인을 요청할 때 serverClientId에 서버의 웹 클라이언트 ID를 지정해야 합니다. 같은 사람이라도 카카오 계정과 구글 계정은 별개의 회원입니다.")
+    @PostMapping("/google/login")
+    public CommonResponse<LoginResponse> googleLogin(@RequestBody @Valid GoogleLoginRequest request) {
+        LoginResponse response = googleLoginUseCase.login(request);
         return CommonResponse.success(ResponseMessage.LOGIN_SUCCESS, response);
     }
 

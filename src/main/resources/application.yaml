@@ -41,6 +41,10 @@ kakao:
   rest-api-key: ${KAKAO_REST_API_KEY:}
   admin-key: ${KAKAO_ADMIN_KEY:}
 
+google:
+  # 구글 로그인 ID 토큰의 대상(aud)으로 허용할 OAuth 웹 클라이언트 ID (쉼표로 여러 개)
+  client-ids: ${GOOGLE_CLIENT_ID:}
+
 firebase:
   credentials-base64: ${FIREBASE_CREDENTIALS_BASE64:}
   credentials-path: ${FIREBASE_CREDENTIALS_PATH:}

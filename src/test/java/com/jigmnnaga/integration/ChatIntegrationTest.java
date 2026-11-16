@@ -97,6 +97,26 @@ class ChatIntegrationTest extends IntegrationTestSupport {
     }
 
     @Test
+    @DisplayName("연결하면 서버가 10초 간격 하트비트를 안내한다")
+    void heartbeat() throws Exception {
+        Member member = createMember("태양");
+        WebSocketStompClient client = new WebSocketStompClient(new StandardWebSocketClient());
+        StompHeaders headers = new StompHeaders();
+        headers.add("Authorization", bearer(member));
+        BlockingQueue<long[]> heartbeats = new LinkedBlockingQueue<>();
+
+        client.connectAsync("ws://localhost:" + port + "/ws", new WebSocketHttpHeaders(), headers,
+                new StompSessionHandlerAdapter() {
+                    @Override
+                    public void afterConnected(StompSession session, StompHeaders connectedHeaders) {
+                        heartbeats.add(connectedHeaders.getHeartbeat());
+                    }
+                }).get(5, TimeUnit.SECONDS);
+
+        assertThat(heartbeats.poll(3, TimeUnit.SECONDS)).containsExactly(10_000L, 10_000L);
+    }
+
+    @Test
     @DisplayName("참여하지 않은 채팅방은 구독할 수 없고, 토큰 없이는 연결할 수 없다")
     void rejectUnauthorizedAccess() throws Exception {
         Member host = createMember("태양");

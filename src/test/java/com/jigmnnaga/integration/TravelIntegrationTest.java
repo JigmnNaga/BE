@@ -314,7 +314,7 @@ class TravelIntegrationTest extends IntegrationTestSupport {
                         .findByAppointmentIdAndMemberId(appointment.id(), host.getId())
                         .ifPresent(p -> {
                             p.depart();
-                            p.arrive();
+                            p.arrive(LocalDateTime.now());
                         })
         );
 
@@ -508,7 +508,7 @@ class TravelIntegrationTest extends IntegrationTestSupport {
                         .findByAppointmentIdAndMemberId(appointment.id(), host.getId())
                         .ifPresent(p -> {
                             p.depart();
-                            p.arrive();
+                            p.arrive(LocalDateTime.now());
                         })
         );
 

@@ -6,6 +6,7 @@ import static org.mockito.Mockito.mock;
 
 import com.jigmnnaga.application.exception.BusinessException;
 import com.jigmnnaga.application.exception.ErrorCode;
+import java.time.LocalDateTime;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -43,7 +44,7 @@ class AppointmentParticipantDepartureStatusTest {
         AppointmentParticipant participant = participant();
         participant.depart();
 
-        participant.arrive();
+        participant.arrive(LocalDateTime.now());
 
         assertThat(participant.getDepartureStatus()).isEqualTo(DepartureStatus.ARRIVED);
     }
@@ -65,9 +66,9 @@ class AppointmentParticipantDepartureStatusTest {
     void arriveAgainWhenAlreadyArrived() {
         AppointmentParticipant participant = participant();
         participant.depart();
-        participant.arrive();
+        participant.arrive(LocalDateTime.now());
 
-        assertThatThrownBy(participant::arrive)
+        assertThatThrownBy(() -> participant.arrive(LocalDateTime.now()))
                 .isInstanceOf(BusinessException.class)
                 .extracting(e -> ((BusinessException) e).getErrorCode())
                 .isEqualTo(ErrorCode.ALREADY_ARRIVED);
@@ -78,7 +79,7 @@ class AppointmentParticipantDepartureStatusTest {
     void arriveBeforeDeparting() {
         AppointmentParticipant participant = participant();
 
-        assertThatThrownBy(participant::arrive)
+        assertThatThrownBy(() -> participant.arrive(LocalDateTime.now()))
                 .isInstanceOf(BusinessException.class)
                 .extracting(e -> ((BusinessException) e).getErrorCode())
                 .isEqualTo(ErrorCode.NOT_YET_DEPARTED);
@@ -89,7 +90,7 @@ class AppointmentParticipantDepartureStatusTest {
     void departAfterArrived() {
         AppointmentParticipant participant = participant();
         participant.depart();
-        participant.arrive();
+        participant.arrive(LocalDateTime.now());
 
         assertThatThrownBy(participant::depart)
                 .isInstanceOf(BusinessException.class)
@@ -103,7 +104,7 @@ class AppointmentParticipantDepartureStatusTest {
         AppointmentParticipant participant = participant();
 
         participant.depart();
-        participant.arrive();
+        participant.arrive(LocalDateTime.now());
 
         assertThat(participant.getStatus()).isEqualTo(ParticipationStatus.ACCEPTED);
         assertThat(participant.getAttendanceStatus()).isEqualTo(AttendanceStatus.PENDING);

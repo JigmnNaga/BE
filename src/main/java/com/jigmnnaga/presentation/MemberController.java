@@ -3,6 +3,7 @@ package com.jigmnnaga.presentation;
 import com.jigmnnaga.application.dto.request.MemberLocationRequest;
 import com.jigmnnaga.application.dto.request.ProfileImageUploadUrlRequest;
 import com.jigmnnaga.application.dto.request.ProfileUpdateRequest;
+import com.jigmnnaga.application.dto.response.AppointmentStatsResponse;
 import com.jigmnnaga.application.dto.response.MemberLocationResponse;
 import com.jigmnnaga.application.dto.response.MyInfoResponse;
 import com.jigmnnaga.application.dto.response.ProfileImageUploadUrlResponse;
@@ -45,6 +46,15 @@ public class MemberController {
     public CommonResponse<MyInfoResponse> getMyInfo(@Parameter(hidden = true) @LoginMember Long memberId) {
         MyInfoResponse response = memberGetUseCase.getMyInfo(memberId);
         return CommonResponse.success(ResponseMessage.MY_INFO_GET_SUCCESS, response);
+    }
+
+    @Operation(summary = "약속 통계 조회", description = "프로필 화면의 총 약속, 제때 도착, 지각 수와 제때 도착률(%)을 조회합니다. 확정된 뒤 약속 시간이 지난 약속 중 참석으로 응답한 약속만 집계하며, 취소된 약속은 제외합니다. 약속 시각(분 단위)까지 도착하면 제때 도착이고, 늦게 도착했거나 도착 기록이 없으면 지각입니다. 집계할 약속이 없으면 onTimeRate는 null입니다.")
+    @GetMapping("/me/stats")
+    public CommonResponse<AppointmentStatsResponse> getAppointmentStats(
+            @Parameter(hidden = true) @LoginMember Long memberId
+    ) {
+        AppointmentStatsResponse response = memberGetUseCase.getAppointmentStats(memberId);
+        return CommonResponse.success(ResponseMessage.APPOINTMENT_STATS_GET_SUCCESS, response);
     }
 
     @Operation(summary = "프로필 이미지 업로드 URL 발급", description = "S3에 프로필 이미지를 직접 올릴 수 있는 업로드 URL(10분 유효)을 발급합니다. 발급받은 uploadUrl로 PUT 요청을 보내되, 요청 헤더의 Content-Type과 Content-Length를 발급 시 보낸 값과 똑같이 맞춰야 합니다. 업로드가 끝나면 profileImageKey로 프로필 수정 API를 호출하세요. JPG, PNG, WEBP만 가능하며 최대 5MB입니다.")

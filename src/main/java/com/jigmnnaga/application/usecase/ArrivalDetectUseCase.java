@@ -75,7 +75,7 @@ public class ArrivalDetectUseCase {
         }
 
         try {
-            participant.arrive(); // JPA dirty checking → @Transactional 커밋 시 자동 반영
+            participant.arrive(now); // JPA dirty checking → @Transactional 커밋 시 자동 반영
             arrivalProximityCache.resetCount(appointmentId, memberId);
             locationSharingEndPublisher.publishAfterCommit(appointmentId, memberId, Reason.ARRIVED, now);
 

@@ -20,6 +20,7 @@ import jakarta.persistence.UniqueConstraint;
 import java.math.BigDecimal; // 추가
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
@@ -110,6 +111,8 @@ public class AppointmentParticipant extends BaseEntity {
     @Column(nullable = false)
     private boolean locationSharingEnabled = true;
 
+    private LocalDateTime arrivedAt;
+
     @Builder
     private AppointmentParticipant(Member member, ParticipantRole role, ParticipationStatus status) {
         this.member = member;
@@ -164,7 +167,7 @@ public class AppointmentParticipant extends BaseEntity {
         this.departureStatus = DepartureStatus.DEPARTED;
     }
 
-    public void arrive() {
+    public void arrive(LocalDateTime arrivedAt) {
         if (departureStatus == DepartureStatus.BEFORE_DEPARTURE) {
             throw new BusinessException(ErrorCode.NOT_YET_DEPARTED);
         }
@@ -172,6 +175,13 @@ public class AppointmentParticipant extends BaseEntity {
             throw new BusinessException(ErrorCode.ALREADY_ARRIVED);
         }
         this.departureStatus = DepartureStatus.ARRIVED;
+        this.arrivedAt = arrivedAt;
+    }
+
+    public boolean arrivedOnTime() {
+        LocalDateTime appointmentDateTime = appointment.getConfirmedDateTime();
+        return arrivedAt != null && appointmentDateTime != null
+                && !arrivedAt.truncatedTo(ChronoUnit.MINUTES).isAfter(appointmentDateTime);
     }
 
     public void stopLocationSharing() {

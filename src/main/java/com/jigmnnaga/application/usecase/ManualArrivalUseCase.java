@@ -60,11 +60,11 @@ public class ManualArrivalUseCase {
         }
 
         try {
+            LocalDateTime now = LocalDateTime.now(TimeZones.SEOUL);
             // BEFORE_DEPARTURE → NOT_YET_DEPARTED(400), ARRIVED → ALREADY_ARRIVED(409)
-            me.arrive();
+            me.arrive(now);
             arrivalProximityCache.resetCount(appointmentId, memberId);
 
-            LocalDateTime now = LocalDateTime.now(TimeZones.SEOUL);
             locationSharingEndPublisher.publishAfterCommit(appointmentId, memberId, Reason.ARRIVED, now);
 
             // 커밋 성공 후 브로드캐스트 (롤백 시 실행되지 않음)

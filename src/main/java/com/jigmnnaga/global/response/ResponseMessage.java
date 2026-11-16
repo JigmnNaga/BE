@@ -14,6 +14,7 @@ public enum ResponseMessage {
     TRANSIT_ROUTE_SUCCESS("대중교통 경로를 조회했습니다."),
     WITHDRAW_SUCCESS("회원 탈퇴가 완료되었습니다."),
     MY_INFO_GET_SUCCESS("내 정보를 조회했습니다."),
+    APPOINTMENT_STATS_GET_SUCCESS("약속 통계를 조회했습니다."),
     PROFILE_UPDATE_SUCCESS("프로필을 수정했습니다."),
     PROFILE_IMAGE_DELETE_SUCCESS("프로필 이미지를 기본 이미지로 변경했습니다."),
     PROFILE_IMAGE_UPLOAD_URL_ISSUE_SUCCESS("프로필 이미지 업로드 URL을 발급했습니다."),

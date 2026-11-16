@@ -8,7 +8,6 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
-import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import lombok.AccessLevel;
 import lombok.Builder;
@@ -37,16 +36,6 @@ public class Member extends BaseEntity {
 
     private String profileImageKey;
 
-    private String defaultLocationName;
-
-    private String defaultLocationAddress;
-
-    @Column(precision = 10, scale = 7)
-    private BigDecimal defaultLatitude;
-
-    @Column(precision = 10, scale = 7)
-    private BigDecimal defaultLongitude;
-
     private String email;
 
     @Enumerated(EnumType.STRING)
@@ -68,7 +57,6 @@ public class Member extends BaseEntity {
         this.kakaoId = -id;
         this.nickname = WITHDRAWN_NICKNAME;
         removeProfileImage();
-        clearDefaultLocation();
         this.email = null;
         this.withdrawnAt = withdrawnAt;
     }
@@ -85,21 +73,6 @@ public class Member extends BaseEntity {
     public void removeProfileImage() {
         this.profileImageKey = null;
         this.profileImageUrl = null;
-    }
-
-    public void updateDefaultLocation(String name, String address, BigDecimal latitude, BigDecimal longitude) {
-        this.defaultLocationName = name;
-        this.defaultLocationAddress = address;
-        this.defaultLatitude = latitude;
-        this.defaultLongitude = longitude;
-    }
-
-    public void clearDefaultLocation() {
-        updateDefaultLocation(null, null, null, null);
-    }
-
-    public boolean hasDefaultLocation() {
-        return defaultLatitude != null && defaultLongitude != null;
     }
 
     public boolean isWithdrawn() {

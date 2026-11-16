@@ -8,9 +8,9 @@ import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import java.math.BigDecimal;
 
-public record DefaultLocationRequest(
+public record MemberLocationRequest(
 
-        @Schema(description = "장소 이름", example = "우리집")
+        @Schema(description = "위치 이름 (예: 집, 회사, 학교)", example = "집")
         @NotBlank
         @Size(max = 255)
         String name,

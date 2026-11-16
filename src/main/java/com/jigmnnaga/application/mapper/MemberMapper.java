@@ -1,12 +1,15 @@
 package com.jigmnnaga.application.mapper;
 
+import com.jigmnnaga.application.dto.request.MemberLocationRequest;
+import com.jigmnnaga.application.dto.response.MemberLocationResponse;
 import com.jigmnnaga.application.dto.response.MyInfoResponse;
-import com.jigmnnaga.application.dto.response.MyInfoResponse.DefaultLocationResponse;
 import com.jigmnnaga.application.dto.response.kakao.KakaoUserInfoResponse;
 import com.jigmnnaga.application.exception.BusinessException;
 import com.jigmnnaga.application.exception.ErrorCode;
 import com.jigmnnaga.domain.entity.Member;
+import com.jigmnnaga.domain.entity.MemberLocation;
 import com.jigmnnaga.domain.entity.Role;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
@@ -32,22 +35,33 @@ public class MemberMapper {
                 .build();
     }
 
-    public MyInfoResponse toMyInfoResponse(Member member) {
+    public MyInfoResponse toMyInfoResponse(Member member, List<MemberLocation> locations) {
         return MyInfoResponse.builder()
                 .memberId(member.getId())
                 .nickname(member.getNickname())
                 .profileImageUrl(profileImageUrlResolver.resolve(member))
                 .email(member.getEmail())
-                .defaultLocation(member.hasDefaultLocation() ? toDefaultLocationResponse(member) : null)
+                .locations(locations.stream().map(this::toLocationResponse).toList())
                 .build();
     }
 
-    private DefaultLocationResponse toDefaultLocationResponse(Member member) {
-        return DefaultLocationResponse.builder()
-                .name(member.getDefaultLocationName())
-                .address(member.getDefaultLocationAddress())
-                .latitude(member.getDefaultLatitude())
-                .longitude(member.getDefaultLongitude())
+    public MemberLocationResponse toLocationResponse(MemberLocation location) {
+        return MemberLocationResponse.builder()
+                .locationId(location.getId())
+                .name(location.getName())
+                .address(location.getAddress())
+                .latitude(location.getLatitude())
+                .longitude(location.getLongitude())
+                .build();
+    }
+
+    public MemberLocation toMemberLocation(Member member, MemberLocationRequest request) {
+        return MemberLocation.builder()
+                .member(member)
+                .name(request.name().strip())
+                .address(request.address())
+                .latitude(request.latitude())
+                .longitude(request.longitude())
                 .build();
     }
 }

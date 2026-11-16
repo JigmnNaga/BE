@@ -1,6 +1,6 @@
 package com.jigmnnaga.application.dto.response;
 
-import java.math.BigDecimal;
+import java.util.List;
 import lombok.Builder;
 
 @Builder
@@ -9,15 +9,6 @@ public record MyInfoResponse(
         String nickname,
         String profileImageUrl,
         String email,
-        DefaultLocationResponse defaultLocation
+        List<MemberLocationResponse> locations
 ) {
-
-    @Builder
-    public record DefaultLocationResponse(
-            String name,
-            String address,
-            BigDecimal latitude,
-            BigDecimal longitude
-    ) {
-    }
 }

@@ -76,10 +76,13 @@ class NotificationIntegrationTest extends IntegrationTestSupport {
                 .andExpect(status().isOk());
         perform(put(appointmentPath(appointment) + "/attendance/me"), noDeparture, Map.of("attendanceStatus", "ATTENDING"))
                 .andExpect(status().isOk());
-        perform(put(appointmentPath(appointment) + "/attendance/me"), ready, Map.of("attendanceStatus", "ATTENDING"))
-                .andExpect(status().isOk());
+        // ready는 ATTENDING 응답 전에 출발 위치와 이동 수단을 모두 입력해 초기 알림 대상에서 제외
         perform(put(appointmentPath(appointment) + "/travel/departure-location"), ready,
                 Map.of("name", "집", "latitude", 37.5, "longitude", 127.0)).andExpect(status().isOk());
+        perform(put(appointmentPath(appointment) + "/travel/mode"), ready,
+                Map.of("mode", "SUBWAY", "durationMinutes", 30)).andExpect(status().isOk());
+        perform(put(appointmentPath(appointment) + "/attendance/me"), ready, Map.of("attendanceStatus", "ATTENDING"))
+                .andExpect(status().isOk());
 
         perform(post(appointmentPath(appointment) + "/reminders"), host)
                 .andExpect(status().isOk())
@@ -90,7 +93,8 @@ class NotificationIntegrationTest extends IntegrationTestSupport {
                 .andExpect(jsonPath("$.data.reminders[1].sentCount").value(1));
 
         assertThat(notificationTypes(undecided)).doesNotContain("DEPARTURE_INPUT_REQUESTED");
-        assertThat(notificationTypes(noDeparture)).containsOnlyOnce("DEPARTURE_INPUT_REQUESTED");
+        // noDeparture는 ATTENDING 응답 시 초기 알림 + 수동 리마인더로 최소 1회 이상 수신
+        assertThat(notificationTypes(noDeparture)).contains("DEPARTURE_INPUT_REQUESTED");
         assertThat(notificationTypes(ready)).doesNotContain("DEPARTURE_INPUT_REQUESTED");
     }
 

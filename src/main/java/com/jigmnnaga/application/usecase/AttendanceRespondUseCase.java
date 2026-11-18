@@ -11,6 +11,7 @@ import com.jigmnnaga.domain.entity.AttendanceStatus;
 import com.jigmnnaga.domain.service.AppointmentParticipantGetService;
 import com.jigmnnaga.global.util.TimeZones;
 import java.time.LocalDateTime;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
@@ -47,10 +48,22 @@ public class AttendanceRespondUseCase {
         AttendanceStatus previousStatus = participant.getAttendanceStatus();
         participant.respondAttendance(request.attendanceStatus());
 
+        LocalDateTime now = LocalDateTime.now(TimeZones.SEOUL);
+
         boolean isNewRescheduleRequest = request.attendanceStatus() == AttendanceStatus.RESCHEDULE_REQUESTED
                 && previousStatus != AttendanceStatus.RESCHEDULE_REQUESTED;
         if (isNewRescheduleRequest) {
             notifyRescheduleRequested(appointment, participant);
+        }
+
+        boolean isNewAttending = request.attendanceStatus() == AttendanceStatus.ATTENDING
+                && previousStatus != AttendanceStatus.ATTENDING;
+        if (isNewAttending && participant.isEligibleForDepartureAutoNotif()
+                && !participant.isDepartureNotifInitialSent()
+                && !appointment.getConfirmedDateTime().isBefore(now)) {
+            appointmentEventPublisher.publishNotification(
+                    appointmentEventFactory.departureInputRequested(appointment, List.of(memberId)));
+            participant.markDepartureNotifInitialSent(now);
         }
     }
 

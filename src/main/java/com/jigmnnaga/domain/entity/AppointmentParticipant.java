@@ -17,7 +17,7 @@ import jakarta.persistence.ManyToOne;
 import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
-import java.math.BigDecimal; // 추가
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
@@ -91,7 +91,6 @@ public class AppointmentParticipant extends BaseEntity {
 
     private LocalDateTime travelModeSelectedAt;
 
-    // 추가: 출발 위치 정보
     @Column(name = "departure_location_name", length = 255)
     private String departureLocationName;
 
@@ -112,6 +111,21 @@ public class AppointmentParticipant extends BaseEntity {
     private boolean locationSharingEnabled = true;
 
     private LocalDateTime arrivedAt;
+
+    // 출발 정보 입력 요청 자동 알림 이력 (참여자 단위)
+    private LocalDateTime departureNotifInitialSentAt;
+    private LocalDateTime departureNotifPeriodicAmSentAt;
+    private LocalDateTime departureNotifPeriodicPmSentAt;
+    @Column(name = "departure_notif_upcoming_24h_sent_at")
+    private LocalDateTime departureNotifUpcoming24hSentAt;
+    @Column(name = "departure_notif_upcoming_12h_sent_at")
+    private LocalDateTime departureNotifUpcoming12hSentAt;
+    @Column(name = "departure_notif_upcoming_6h_sent_at")
+    private LocalDateTime departureNotifUpcoming6hSentAt;
+    @Column(name = "departure_notif_upcoming_3h_sent_at")
+    private LocalDateTime departureNotifUpcoming3hSentAt;
+    @Column(name = "departure_notif_upcoming_1h_sent_at")
+    private LocalDateTime departureNotifUpcoming1hSentAt;
 
     @Builder
     private AppointmentParticipant(Member member, ParticipantRole role, ParticipationStatus status) {
@@ -146,12 +160,7 @@ public class AppointmentParticipant extends BaseEntity {
         this.travelModeSelectedAt = selectedAt;
     }
 
-    // 추가: 출발 위치 등록
-    public void registerDepartureLocation(
-            String name,
-            BigDecimal latitude,
-            BigDecimal longitude
-    ) {
+    public void registerDepartureLocation(String name, BigDecimal latitude, BigDecimal longitude) {
         this.departureLocationName = name;
         this.departureLatitude = latitude;
         this.departureLongitude = longitude;
@@ -254,6 +263,98 @@ public class AppointmentParticipant extends BaseEntity {
 
     public boolean hasDepartureLocation() {
         return departureLatitude != null && departureLongitude != null;
+    }
+
+    /** 출발 정보 입력 완료 여부: 출발 위치 + 이동 수단 모두 입력 시 완료 */
+    public boolean hasCompletedDepartureInfo() {
+        return departureLatitude != null && departureLongitude != null && travelMode != null;
+    }
+
+    /** 자동 출발 정보 입력 요청 알림 발송 대상 여부 */
+    public boolean isEligibleForDepartureAutoNotif() {
+        return status == ParticipationStatus.ACCEPTED
+                && attendanceStatus == AttendanceStatus.ATTENDING
+                && !hasCompletedDepartureInfo();
+    }
+
+    // ─── 최초 알림 ────────────────────────────────────────────────────────────
+
+    public boolean isDepartureNotifInitialSent() {
+        return departureNotifInitialSentAt != null;
+    }
+
+    public void markDepartureNotifInitialSent(LocalDateTime sentAt) {
+        this.departureNotifInitialSentAt = sentAt;
+    }
+
+    // ─── 정기 알림 (AM 10시 / PM 18시) ───────────────────────────────────────
+
+    public boolean isDepartureNotifPeriodicAmSentToday(LocalDate today) {
+        return departureNotifPeriodicAmSentAt != null
+                && departureNotifPeriodicAmSentAt.toLocalDate().equals(today);
+    }
+
+    public void markDepartureNotifPeriodicAmSent(LocalDateTime sentAt) {
+        this.departureNotifPeriodicAmSentAt = sentAt;
+    }
+
+    public boolean isDepartureNotifPeriodicPmSentToday(LocalDate today) {
+        return departureNotifPeriodicPmSentAt != null
+                && departureNotifPeriodicPmSentAt.toLocalDate().equals(today);
+    }
+
+    public void markDepartureNotifPeriodicPmSent(LocalDateTime sentAt) {
+        this.departureNotifPeriodicPmSentAt = sentAt;
+    }
+
+    /** 최초 알림 또는 직전 정기 알림 이후 4시간 경과 여부 */
+    public boolean isDeparturePeriodicGapSatisfied(LocalDateTime now) {
+        LocalDateTime last = getDepartureNotifLastInitialOrPeriodicSentAt();
+        return last == null || !last.plusHours(4).isAfter(now);
+    }
+
+    private LocalDateTime getDepartureNotifLastInitialOrPeriodicSentAt() {
+        LocalDateTime max = null;
+        for (LocalDateTime t : new LocalDateTime[]{
+                departureNotifInitialSentAt,
+                departureNotifPeriodicAmSentAt,
+                departureNotifPeriodicPmSentAt}) {
+            if (t != null && (max == null || t.isAfter(max))) {
+                max = t;
+            }
+        }
+        return max;
+    }
+
+    // ─── 임박 알림 ────────────────────────────────────────────────────────────
+
+    public boolean isDepartureNotifUpcomingSent(DepartureUpcomingStage stage) {
+        return switch (stage) {
+            case H24 -> departureNotifUpcoming24hSentAt != null;
+            case H12 -> departureNotifUpcoming12hSentAt != null;
+            case H6 -> departureNotifUpcoming6hSentAt != null;
+            case H3 -> departureNotifUpcoming3hSentAt != null;
+            case H1 -> departureNotifUpcoming1hSentAt != null;
+        };
+    }
+
+    public void markDepartureNotifUpcomingSent(DepartureUpcomingStage stage, LocalDateTime sentAt) {
+        switch (stage) {
+            case H24 -> this.departureNotifUpcoming24hSentAt = sentAt;
+            case H12 -> this.departureNotifUpcoming12hSentAt = sentAt;
+            case H6 -> this.departureNotifUpcoming6hSentAt = sentAt;
+            case H3 -> this.departureNotifUpcoming3hSentAt = sentAt;
+            case H1 -> this.departureNotifUpcoming1hSentAt = sentAt;
+        }
+    }
+
+    /** 약속 날짜/시간 변경 시 임박 알림 이력 초기화 */
+    public void resetDepartureUpcomingNotifHistory() {
+        this.departureNotifUpcoming24hSentAt = null;
+        this.departureNotifUpcoming12hSentAt = null;
+        this.departureNotifUpcoming6hSentAt = null;
+        this.departureNotifUpcoming3hSentAt = null;
+        this.departureNotifUpcoming1hSentAt = null;
     }
 
     public boolean isHost() {

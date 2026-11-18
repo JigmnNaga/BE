@@ -67,4 +67,8 @@ public class AppointmentGetService {
         return appointmentRepository
                 .findAllByCanceledFalseAndPreAppointmentNotifiedAtIsNullAndConfirmedDateBetween(from, to);
     }
+
+    public List<Appointment> findAllNeedingCompletion(LocalDateTime cutoff) {
+        return appointmentRepository.findAllNeedingCompletion(cutoff.toLocalDate(), cutoff.toLocalTime());
+    }
 }

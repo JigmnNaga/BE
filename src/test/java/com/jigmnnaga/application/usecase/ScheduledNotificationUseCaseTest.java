@@ -129,4 +129,91 @@ class ScheduledNotificationUseCaseTest extends IntegrationTestSupport {
 
         assertThat(received(appointmentId, NotificationType.APPOINTMENT_SOON)).hasSize(3);
     }
+
+    @Test
+    @DisplayName("확정된 약속 시간으로부터 24시간이 경과하면 완료 처리되고 completedAt이 기록된다")
+    void completeOverdue_confirmedAndExpired() {
+        Member host = createMember("태양");
+        Member member = createMember("태희");
+        Long appointmentId = saveAppointment(host, member, now.minusDays(2), now.minusHours(25), null);
+
+        int count = scheduledNotificationUseCase.completeOverdueAppointments(now);
+
+        assertThat(count).isGreaterThanOrEqualTo(1);
+        transactionTemplate.executeWithoutResult(status -> {
+            Appointment appointment = appointmentRepository.findById(appointmentId).orElseThrow();
+            assertThat(appointment.getCompletedAt()).isNotNull();
+        });
+    }
+
+    @Test
+    @DisplayName("확정된 약속 시간으로부터 24시간이 지나지 않은 약속은 완료 처리되지 않는다")
+    void completeOverdue_notYetExpired() {
+        Member host = createMember("태양");
+        Member member = createMember("태희");
+        Long appointmentId = saveAppointment(host, member, now.minusDays(1), now.minusHours(23), null);
+
+        scheduledNotificationUseCase.completeOverdueAppointments(now);
+
+        transactionTemplate.executeWithoutResult(status -> {
+            Appointment appointment = appointmentRepository.findById(appointmentId).orElseThrow();
+            assertThat(appointment.getCompletedAt()).isNull();
+        });
+    }
+
+    @Test
+    @DisplayName("확정되지 않은 약속은 완료 처리 대상에서 제외된다")
+    void completeOverdue_unconfirmedExcluded() {
+        Member host = createMember("태양");
+        Member member = createMember("태희");
+        Long appointmentId = saveAppointment(host, member, now.minusDays(2), null, null);
+
+        scheduledNotificationUseCase.completeOverdueAppointments(now);
+
+        transactionTemplate.executeWithoutResult(status -> {
+            Appointment appointment = appointmentRepository.findById(appointmentId).orElseThrow();
+            assertThat(appointment.getCompletedAt()).isNull();
+        });
+    }
+
+    @Test
+    @DisplayName("취소된 약속은 완료 처리 대상에서 제외된다")
+    void completeOverdue_canceledExcluded() {
+        Member host = createMember("태양");
+        Member member = createMember("태희");
+        Long appointmentId = saveAppointment(host, member, now.minusDays(2), now.minusHours(25), null);
+
+        transactionTemplate.executeWithoutResult(status -> {
+            Appointment appointment = appointmentRepository.findById(appointmentId).orElseThrow();
+            appointment.cancel();
+        });
+
+        scheduledNotificationUseCase.completeOverdueAppointments(now);
+
+        transactionTemplate.executeWithoutResult(status -> {
+            Appointment appointment = appointmentRepository.findById(appointmentId).orElseThrow();
+            assertThat(appointment.getCompletedAt()).isNull();
+        });
+    }
+
+    @Test
+    @DisplayName("이미 완료된 약속은 중복 처리되지 않는다")
+    void completeOverdue_alreadyCompleted_notProcessedAgain() {
+        Member host = createMember("태양");
+        Member member = createMember("태희");
+        Long appointmentId = saveAppointment(host, member, now.minusDays(2), now.minusHours(25), null);
+
+        scheduledNotificationUseCase.completeOverdueAppointments(now);
+
+        LocalDateTime firstCompletedAt = transactionTemplate.execute(status ->
+                appointmentRepository.findById(appointmentId).orElseThrow().getCompletedAt());
+        assertThat(firstCompletedAt).isNotNull();
+
+        scheduledNotificationUseCase.completeOverdueAppointments(now.plusMinutes(1));
+
+        transactionTemplate.executeWithoutResult(status -> {
+            Appointment appointment = appointmentRepository.findById(appointmentId).orElseThrow();
+            assertThat(appointment.getCompletedAt()).isEqualTo(firstCompletedAt);
+        });
+    }
 }

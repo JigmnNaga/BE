@@ -23,6 +23,7 @@ public class AppointmentNotificationScheduler {
         run("투표 마감 임박", () -> scheduledNotificationUseCase.sendDeadlineReminders(now));
         run("응답 기한 마감", () -> scheduledNotificationUseCase.sendDeadlineClosedNotifications(now));
         run("약속 5시간 전", () -> scheduledNotificationUseCase.sendPreAppointmentNotifications(now));
+        run("약속 자동 완료", () -> scheduledNotificationUseCase.completeOverdueAppointments(now));
     }
 
     private void run(String name, NotificationJob job) {

@@ -77,6 +77,8 @@ public class Appointment extends BaseEntity {
 
     private LocalDateTime preAppointmentNotifiedAt;
 
+    private LocalDateTime completedAt;
+
     @OneToMany(mappedBy = "appointment", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<AppointmentCandidateDate> candidateDates = new ArrayList<>();
 
@@ -171,6 +173,10 @@ public class Appointment extends BaseEntity {
 
     public void markPreAppointmentNotified(LocalDateTime notifiedAt) {
         this.preAppointmentNotifiedAt = notifiedAt;
+    }
+
+    public void markCompleted(LocalDateTime completedAt) {
+        this.completedAt = completedAt;
     }
 
     public Optional<Long> getHostMemberId() {

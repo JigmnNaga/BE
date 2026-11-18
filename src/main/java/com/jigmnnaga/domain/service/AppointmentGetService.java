@@ -71,4 +71,8 @@ public class AppointmentGetService {
     public List<Appointment> findAllNeedingCompletion(LocalDateTime cutoff) {
         return appointmentRepository.findAllNeedingCompletion(cutoff.toLocalDate(), cutoff.toLocalTime());
     }
+
+    public List<Appointment> findAllConfirmedForDepartureInputReminder(LocalDate from, LocalDate to) {
+        return appointmentRepository.findAllByCanceledFalseAndConfirmedDateBetween(from, to);
+    }
 }

@@ -25,6 +25,8 @@ public interface AppointmentRepository extends JpaRepository<Appointment, Long> 
     List<Appointment> findAllByCanceledFalseAndPreAppointmentNotifiedAtIsNullAndConfirmedDateBetween(
             LocalDate from, LocalDate to);
 
+    List<Appointment> findAllByCanceledFalseAndConfirmedDateBetween(LocalDate from, LocalDate to);
+
     @Query("SELECT a FROM Appointment a " +
            "WHERE a.canceled = false " +
            "AND a.completedAt IS NULL " +

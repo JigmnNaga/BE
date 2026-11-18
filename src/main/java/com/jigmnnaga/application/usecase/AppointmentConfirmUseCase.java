@@ -9,7 +9,10 @@ import com.jigmnnaga.application.event.AppointmentEventPublisher;
 import com.jigmnnaga.application.validator.AppointmentAccessValidator;
 import com.jigmnnaga.domain.entity.Appointment;
 import com.jigmnnaga.domain.entity.AppointmentCandidateLocation;
+import com.jigmnnaga.domain.entity.AppointmentParticipant;
+import com.jigmnnaga.global.util.TimeZones;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
@@ -87,6 +90,31 @@ public class AppointmentConfirmUseCase {
         }
         appointmentEventPublisher.publishNotification(
                 appointmentEventFactory.attendanceRequested(appointment, recipientIds));
+
+        sendDepartureInputRequestIfNeeded(appointment);
+    }
+
+    private void sendDepartureInputRequestIfNeeded(Appointment appointment) {
+        if (!appointment.isConfirmed()) {
+            return;
+        }
+        LocalDateTime now = LocalDateTime.now(TimeZones.SEOUL);
+        LocalDateTime confirmedAt = appointment.getConfirmedDateTime();
+        if (confirmedAt.isBefore(now)) {
+            return;
+        }
+        List<AppointmentParticipant> eligible = appointment.getParticipants().stream()
+                .filter(AppointmentParticipant::isEligibleForDepartureAutoNotif)
+                .filter(p -> !p.isDepartureNotifInitialSent())
+                .toList();
+        if (!eligible.isEmpty()) {
+            List<Long> recipientIds = eligible.stream()
+                    .map(p -> p.getMember().getId())
+                    .toList();
+            appointmentEventPublisher.publishNotification(
+                    appointmentEventFactory.departureInputRequested(appointment, recipientIds));
+            eligible.forEach(p -> p.markDepartureNotifInitialSent(now));
+        }
     }
 
     private record ConfirmationSnapshot(boolean confirmed, LocalDate date, LocalTime time, Long locationId,

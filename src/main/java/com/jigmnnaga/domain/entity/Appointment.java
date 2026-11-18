@@ -101,6 +101,7 @@ public class Appointment extends BaseEntity {
         boolean isChanged = !confirmedDate.equals(this.confirmedDate) || !confirmedTime.equals(this.confirmedTime);
         if (isChanged) {
             participants.forEach(AppointmentParticipant::resetAttendance);
+            participants.forEach(AppointmentParticipant::resetDepartureUpcomingNotifHistory);
             this.preAppointmentNotifiedAt = null;
         }
         this.confirmedDate = confirmedDate;

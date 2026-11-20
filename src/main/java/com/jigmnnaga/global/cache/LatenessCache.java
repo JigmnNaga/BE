@@ -89,6 +89,17 @@ public class LatenessCache {
         }
     }
 
+    /**
+     * 약속의 지각 예측 캐시를 삭제합니다.
+     *
+     * <p>약속 확정 시각 변경 시 호출하여 오래된 지각 예측 결과를 무효화합니다.
+     * 다음 ETA 계산 시 putIfNewer()가 반드시 true를 반환하여
+     * 새 약속 시각 기준의 지각 예상 알림이 누락되지 않도록 보장합니다.</p>
+     */
+    public void evictByAppointment(Long appointmentId) {
+        redisTemplate.delete(RESULT_KEY_PREFIX + appointmentId);
+    }
+
     public record LatenessInfo(int expectedLatenessMinutes, boolean isExpectedLate, LocalDateTime calculatedAt) {
     }
 }

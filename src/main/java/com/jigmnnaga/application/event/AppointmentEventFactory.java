@@ -70,6 +70,24 @@ public class AppointmentEventFactory {
                 "'" + appointment.getTitle() + "' 약속을 위해 지금 출발하세요.");
     }
 
+    public NotificationEvent departed(Appointment appointment, String nickname, List<Long> recipientIds) {
+        return new NotificationEvent(recipientIds, appointment.getId(), NotificationType.DEPARTED,
+                nickname + "님이 출발했어요!",
+                "'" + appointment.getTitle() + "' 약속을 위해 " + nickname + "님이 출발했어요.");
+    }
+
+    public NotificationEvent lateExpected(Appointment appointment, int latenessMinutes, Long recipientId) {
+        return new NotificationEvent(List.of(recipientId), appointment.getId(), NotificationType.LATE_EXPECTED,
+                "지각이 예상돼요",
+                "'" + appointment.getTitle() + "' 약속에 약 " + latenessMinutes + "분 늦을 것으로 예상돼요.");
+    }
+
+    public NotificationEvent arrived(Appointment appointment, String nickname, List<Long> recipientIds) {
+        return new NotificationEvent(recipientIds, appointment.getId(), NotificationType.ARRIVED,
+                nickname + "님이 도착했어요!",
+                "'" + appointment.getTitle() + "' 약속 장소에 " + nickname + "님이 도착했어요.");
+    }
+
     public NotificationEvent canceled(Appointment appointment, List<Long> recipientIds) {
         return new NotificationEvent(recipientIds, appointment.getId(), NotificationType.APPOINTMENT_CANCELED,
                 "약속이 취소됐어요",

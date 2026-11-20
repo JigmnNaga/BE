@@ -14,8 +14,10 @@ import com.jigmnnaga.application.dto.response.kakao.KakaoTransitRouteResponse;
 import com.jigmnnaga.domain.entity.Appointment;
 import com.jigmnnaga.domain.entity.DepartureStatus;
 import com.jigmnnaga.domain.entity.Member;
+import com.jigmnnaga.domain.entity.NotificationType;
 import com.jigmnnaga.domain.repository.AppointmentParticipantRepository;
 import com.jigmnnaga.domain.repository.AppointmentRepository;
+import com.jigmnnaga.domain.repository.NotificationRepository;
 import com.jigmnnaga.global.client.kakao.KakaoMobilityApiClient;
 import com.jigmnnaga.global.client.kakao.KakaoTransitApiClient;
 import com.jigmnnaga.support.IntegrationTestSupport;
@@ -47,6 +49,9 @@ class TravelIntegrationTest extends IntegrationTestSupport {
 
     @Autowired
     private AppointmentRepository appointmentRepository;
+
+    @Autowired
+    private NotificationRepository notificationRepository;
 
     private final double latitude = 37.4 + ThreadLocalRandom.current().nextDouble(0.1);
     private final double longitude = 127.0 + ThreadLocalRandom.current().nextDouble(0.1);
@@ -655,5 +660,114 @@ class TravelIntegrationTest extends IntegrationTestSupport {
         perform(get(appointmentPath(appointment) + "/travel/estimated-time"), host)
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.destinationName").value("강남역 카페거리"));
+    }
+
+    // ── 출발·도착 알림 발행 테스트 ────────────────────────────────────────────
+
+    private List<String> receivedNotifNicknames(long appointmentId, NotificationType type) {
+        return transactionTemplate.execute(status ->
+                notificationRepository.findAll().stream()
+                        .filter(n -> Long.valueOf(appointmentId).equals(n.getAppointmentId()))
+                        .filter(n -> n.getType() == type)
+                        .map(n -> n.getMember().getNickname())
+                        .sorted()
+                        .toList()
+        );
+    }
+
+    @Test
+    @DisplayName("출발 성공 시 다른 ACCEPTED+ATTENDING 참여자에게 DEPARTED 알림이 발행된다")
+    void depart_success_notifPublished() throws Exception {
+        Member host = createMember("출발자");
+        Member member = createMember("수신자");
+        CreatedAppointment appointment = confirmedAppointment(host);
+        accept(appointment, member);
+
+        // 수신자를 ATTENDING으로 설정
+        transactionTemplate.executeWithoutResult(tx -> {
+            Appointment appt = appointmentRepository.findById(appointment.id()).orElseThrow();
+            appt.findAcceptedParticipant(member.getId()).orElseThrow()
+                    .respondAttendance(com.jigmnnaga.domain.entity.AttendanceStatus.ATTENDING);
+        });
+
+        depart(appointment, host).andExpect(status().isOk());
+
+        // ATTENDING 수신자가 알림을 받는다
+        List<String> recipients = receivedNotifNicknames(appointment.id(), NotificationType.DEPARTED);
+        assertThat(recipients).containsExactly("수신자");
+    }
+
+    @Test
+    @DisplayName("이미 출발한 참여자가 중복 출발 요청 시 409를 반환하고 알림이 추가 발행되지 않는다")
+    void depart_whenAlreadyDeparted_returns409_noAdditionalNotif() throws Exception {
+        Member host = createMember("출발자");
+        Member member = createMember("수신자");
+        CreatedAppointment appointment = confirmedAppointment(host);
+        accept(appointment, member);
+
+        transactionTemplate.executeWithoutResult(tx -> {
+            Appointment appt = appointmentRepository.findById(appointment.id()).orElseThrow();
+            appt.findAcceptedParticipant(member.getId()).orElseThrow()
+                    .respondAttendance(com.jigmnnaga.domain.entity.AttendanceStatus.ATTENDING);
+        });
+
+        // 첫 번째 출발 성공
+        depart(appointment, host).andExpect(status().isOk());
+        List<String> afterFirst = receivedNotifNicknames(appointment.id(), NotificationType.DEPARTED);
+
+        // 두 번째 출발 시도 → 409
+        depart(appointment, host).andExpect(status().isConflict());
+
+        // 알림 수가 늘어나지 않아야 함
+        List<String> afterSecond = receivedNotifNicknames(appointment.id(), NotificationType.DEPARTED);
+        assertThat(afterSecond).hasSameSizeAs(afterFirst);
+    }
+
+    @Test
+    @DisplayName("수동 도착 성공 시 다른 ACCEPTED+ATTENDING 참여자에게 ARRIVED 알림이 발행된다")
+    void arrive_manual_success_notifPublished() throws Exception {
+        Member host = createMember("도착자");
+        Member member = createMember("수신자");
+        CreatedAppointment appointment = confirmedAppointment(host);
+        accept(appointment, member);
+
+        transactionTemplate.executeWithoutResult(tx -> {
+            Appointment appt = appointmentRepository.findById(appointment.id()).orElseThrow();
+            appt.findAcceptedParticipant(member.getId()).orElseThrow()
+                    .respondAttendance(com.jigmnnaga.domain.entity.AttendanceStatus.ATTENDING);
+        });
+
+        // 출발 후 도착
+        depart(appointment, host).andExpect(status().isOk());
+        arrive(appointment, host).andExpect(status().isOk());
+
+        List<String> recipients = receivedNotifNicknames(appointment.id(), NotificationType.ARRIVED);
+        assertThat(recipients).containsExactly("수신자");
+    }
+
+    @Test
+    @DisplayName("이미 도착한 참여자가 중복 도착 요청 시 409를 반환하고 알림이 추가 발행되지 않는다")
+    void arrive_whenAlreadyArrived_returns409_noAdditionalNotif() throws Exception {
+        Member host = createMember("도착자");
+        Member member = createMember("수신자");
+        CreatedAppointment appointment = confirmedAppointment(host);
+        accept(appointment, member);
+
+        transactionTemplate.executeWithoutResult(tx -> {
+            Appointment appt = appointmentRepository.findById(appointment.id()).orElseThrow();
+            appt.findAcceptedParticipant(member.getId()).orElseThrow()
+                    .respondAttendance(com.jigmnnaga.domain.entity.AttendanceStatus.ATTENDING);
+        });
+
+        depart(appointment, host).andExpect(status().isOk());
+        // 첫 번째 도착 성공
+        arrive(appointment, host).andExpect(status().isOk());
+        List<String> afterFirst = receivedNotifNicknames(appointment.id(), NotificationType.ARRIVED);
+
+        // 두 번째 도착 → 409
+        arrive(appointment, host).andExpect(status().isConflict());
+
+        List<String> afterSecond = receivedNotifNicknames(appointment.id(), NotificationType.ARRIVED);
+        assertThat(afterSecond).hasSameSizeAs(afterFirst);
     }
 }

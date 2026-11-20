@@ -8,6 +8,8 @@ import com.jigmnnaga.application.dto.response.DepartureLocationResponse;
 import com.jigmnnaga.application.dto.response.TransitRouteResponse;
 import com.jigmnnaga.application.dto.response.TravelOptionsResponse;
 import com.jigmnnaga.application.dto.response.TravelOptionsResponse.TravelOptionResponse;
+import com.jigmnnaga.application.event.AppointmentEventFactory;
+import com.jigmnnaga.application.event.AppointmentEventPublisher;
 import com.jigmnnaga.application.exception.BusinessException;
 import com.jigmnnaga.application.exception.ErrorCode;
 import com.jigmnnaga.application.mapper.TravelOptionMapper;
@@ -41,6 +43,8 @@ public class TravelOptionUseCase {
     private final TransitRouteGetUseCase transitRouteGetUseCase;
     private final KakaoMobilityApiClient kakaoMobilityApiClient;
     private final TravelOptionMapper travelOptionMapper;
+    private final AppointmentEventPublisher appointmentEventPublisher;
+    private final AppointmentEventFactory appointmentEventFactory;
 
     @Transactional(readOnly = true)
     public TravelOptionsResponse getTravelOptions(Long memberId, Long appointmentId, double latitude, double longitude) {
@@ -91,6 +95,13 @@ public class TravelOptionUseCase {
     public void depart(Long memberId, Long appointmentId) {
         AppointmentParticipant me = getTravelableParticipant(memberId, appointmentId);
         me.depart();
+
+        // 상태 전이 성공 후 다른 ACCEPTED + ATTENDING 참여자에게 출발 알림 발송
+        // me.depart()가 예외를 던지면 아래 코드에 도달하지 않으므로 중복 발송 없음
+        String nickname = me.getMember().getNickname();
+        List<Long> recipientIds = me.getAppointment().getAcceptedAttendingMemberIdsExcept(memberId);
+        appointmentEventPublisher.publishNotification(
+                appointmentEventFactory.departed(me.getAppointment(), nickname, recipientIds));
     }
 
     @Transactional

@@ -2,6 +2,8 @@ package com.jigmnnaga.application.usecase;
 
 import com.jigmnnaga.application.dto.response.ArrivalBroadcastResponse;
 import com.jigmnnaga.application.dto.response.LocationSharingEndedResponse.Reason;
+import com.jigmnnaga.application.event.AppointmentEventFactory;
+import com.jigmnnaga.application.event.AppointmentEventPublisher;
 import com.jigmnnaga.application.event.LocationSharingEndPublisher;
 import com.jigmnnaga.application.exception.BusinessException;
 import com.jigmnnaga.application.exception.ErrorCode;
@@ -11,6 +13,7 @@ import com.jigmnnaga.domain.service.AppointmentParticipantGetService;
 import com.jigmnnaga.global.cache.ArrivalProximityCache;
 import com.jigmnnaga.global.util.TimeZones;
 import java.time.LocalDateTime;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
@@ -38,6 +41,8 @@ public class ManualArrivalUseCase {
     private final ArrivalProximityCache arrivalProximityCache;
     private final SimpMessagingTemplate messagingTemplate;
     private final LocationSharingEndPublisher locationSharingEndPublisher;
+    private final AppointmentEventPublisher appointmentEventPublisher;
+    private final AppointmentEventFactory appointmentEventFactory;
 
     @Transactional
     public void arrive(Long memberId, Long appointmentId) {
@@ -66,6 +71,12 @@ public class ManualArrivalUseCase {
             arrivalProximityCache.resetCount(appointmentId, memberId);
 
             locationSharingEndPublisher.publishAfterCommit(appointmentId, memberId, Reason.ARRIVED, now);
+
+            // 도착 알림: 트랜잭션 커밋 이후 처리되도록 @Transactional 내에서 이벤트 발행
+            String nickname = me.getMember().getNickname();
+            List<Long> recipientIds = appointment.getAcceptedAttendingMemberIdsExcept(memberId);
+            appointmentEventPublisher.publishNotification(
+                    appointmentEventFactory.arrived(appointment, nickname, recipientIds));
 
             // 커밋 성공 후 브로드캐스트 (롤백 시 실행되지 않음)
             TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {

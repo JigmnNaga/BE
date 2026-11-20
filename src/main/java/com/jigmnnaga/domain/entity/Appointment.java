@@ -103,6 +103,7 @@ public class Appointment extends BaseEntity {
             participants.forEach(AppointmentParticipant::resetAttendance);
             participants.forEach(AppointmentParticipant::resetDepartureUpcomingNotifHistory);
             participants.forEach(AppointmentParticipant::resetDepartureTimeNotifHistory);
+            participants.forEach(AppointmentParticipant::resetLateNotifHistory);
             this.preAppointmentNotifiedAt = null;
         }
         this.confirmedDate = confirmedDate;
@@ -193,6 +194,15 @@ public class Appointment extends BaseEntity {
                 .filter(participant -> participant.getStatus() == ParticipationStatus.ACCEPTED)
                 .map(participant -> participant.getMember().getId())
                 .filter(memberId -> !memberId.equals(excludedMemberId))
+                .toList();
+    }
+
+    public List<Long> getAcceptedAttendingMemberIdsExcept(Long excludedMemberId) {
+        return participants.stream()
+                .filter(p -> p.getStatus() == ParticipationStatus.ACCEPTED)
+                .filter(p -> p.getAttendanceStatus() == AttendanceStatus.ATTENDING)
+                .map(p -> p.getMember().getId())
+                .filter(id -> !id.equals(excludedMemberId))
                 .toList();
     }
 

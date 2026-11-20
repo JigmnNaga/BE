@@ -57,6 +57,19 @@ public class AppointmentEventFactory {
                 "'" + appointment.getTitle() + "' 약속에 출발할 위치를 등록해 주세요.");
     }
 
+    public NotificationEvent departurePrepareReminder(Appointment appointment, LocalDateTime departureTime,
+                                                       List<Long> recipientIds) {
+        return new NotificationEvent(recipientIds, appointment.getId(), NotificationType.DEPARTURE_PREPARATION_REMINDER,
+                "출발 준비하세요",
+                "'" + appointment.getTitle() + "' 약속을 위해 " + formatDateTime(departureTime) + "에 출발하세요.");
+    }
+
+    public NotificationEvent departureStartTimeReminder(Appointment appointment, List<Long> recipientIds) {
+        return new NotificationEvent(recipientIds, appointment.getId(), NotificationType.DEPARTURE_START_TIME_REMINDER,
+                "출발 시간이에요",
+                "'" + appointment.getTitle() + "' 약속을 위해 지금 출발하세요.");
+    }
+
     public NotificationEvent canceled(Appointment appointment, List<Long> recipientIds) {
         return new NotificationEvent(recipientIds, appointment.getId(), NotificationType.APPOINTMENT_CANCELED,
                 "약속이 취소됐어요",

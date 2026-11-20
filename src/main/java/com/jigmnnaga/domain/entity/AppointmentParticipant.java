@@ -18,6 +18,7 @@ import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
@@ -112,6 +113,10 @@ public class AppointmentParticipant extends BaseEntity {
 
     private LocalDateTime arrivedAt;
 
+    // 출발 시간 알림 이력 (참여자 단위)
+    private LocalDateTime departurePrepareNotifSentAt;
+    private LocalDateTime departureStartTimeNotifSentAt;
+
     // 출발 정보 입력 요청 자동 알림 이력 (참여자 단위)
     private LocalDateTime departureNotifInitialSentAt;
     private LocalDateTime departureNotifPeriodicAmSentAt;
@@ -161,9 +166,30 @@ public class AppointmentParticipant extends BaseEntity {
     }
 
     public void registerDepartureLocation(String name, BigDecimal latitude, BigDecimal longitude) {
+        if (departureStatus != DepartureStatus.BEFORE_DEPARTURE) {
+            throw new BusinessException(ErrorCode.DEPARTURE_LOCATION_LOCKED);
+        }
+        boolean locationChanged = isDepartureLocationChanged(latitude, longitude);
         this.departureLocationName = name;
         this.departureLatitude = latitude;
         this.departureLongitude = longitude;
+        if (locationChanged) {
+            this.travelMode = null;
+            this.travelDurationMinutes = null;
+        }
+    }
+
+    private static final int COORDINATE_SCALE = 7;
+
+    private boolean isDepartureLocationChanged(BigDecimal newLatitude, BigDecimal newLongitude) {
+        if (this.departureLatitude == null || this.departureLongitude == null) {
+            return false;
+        }
+        BigDecimal existingLat = this.departureLatitude.setScale(COORDINATE_SCALE, RoundingMode.HALF_UP);
+        BigDecimal existingLon = this.departureLongitude.setScale(COORDINATE_SCALE, RoundingMode.HALF_UP);
+        BigDecimal incomingLat = newLatitude.setScale(COORDINATE_SCALE, RoundingMode.HALF_UP);
+        BigDecimal incomingLon = newLongitude.setScale(COORDINATE_SCALE, RoundingMode.HALF_UP);
+        return existingLat.compareTo(incomingLat) != 0 || existingLon.compareTo(incomingLon) != 0;
     }
 
     public void depart() {
@@ -275,6 +301,43 @@ public class AppointmentParticipant extends BaseEntity {
         return status == ParticipationStatus.ACCEPTED
                 && attendanceStatus == AttendanceStatus.ATTENDING
                 && !hasCompletedDepartureInfo();
+    }
+
+    /**
+     * 출발 시간 알림(준비 알림·출발 알림) 발송 대상 여부.
+     * 출발 위치·이동 수단 완료 + travelDurationMinutes 양수 + 아직 출발 전 조건을 모두 만족해야 한다.
+     */
+    public boolean isEligibleForDepartureTimeNotif() {
+        return status == ParticipationStatus.ACCEPTED
+                && attendanceStatus == AttendanceStatus.ATTENDING
+                && hasCompletedDepartureInfo()
+                && travelDurationMinutes != null
+                && travelDurationMinutes > 0
+                && departureStatus == DepartureStatus.BEFORE_DEPARTURE;
+    }
+
+    // ─── 출발 시간 알림 ───────────────────────────────────────────────────────
+
+    public boolean isDeparturePrepareNotifSent() {
+        return departurePrepareNotifSentAt != null;
+    }
+
+    public void markDeparturePrepareNotifSent(LocalDateTime sentAt) {
+        this.departurePrepareNotifSentAt = sentAt;
+    }
+
+    public boolean isDepartureStartTimeNotifSent() {
+        return departureStartTimeNotifSentAt != null;
+    }
+
+    public void markDepartureStartTimeNotifSent(LocalDateTime sentAt) {
+        this.departureStartTimeNotifSentAt = sentAt;
+    }
+
+    /** 약속 날짜/시간 변경 시 출발 시간 알림 이력 초기화 */
+    public void resetDepartureTimeNotifHistory() {
+        this.departurePrepareNotifSentAt = null;
+        this.departureStartTimeNotifSentAt = null;
     }
 
     // ─── 최초 알림 ────────────────────────────────────────────────────────────

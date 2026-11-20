@@ -20,6 +20,7 @@ import com.jigmnnaga.domain.entity.Member;
 import com.jigmnnaga.domain.entity.NotificationType;
 import com.jigmnnaga.domain.entity.ParticipantRole;
 import com.jigmnnaga.domain.entity.ParticipationStatus;
+import com.jigmnnaga.domain.entity.DepartureStatus;
 import com.jigmnnaga.domain.entity.TravelMode;
 import com.jigmnnaga.domain.repository.AppointmentRepository;
 import com.jigmnnaga.domain.repository.NotificationRepository;
@@ -623,6 +624,365 @@ class ScheduledNotificationUseCaseTest extends IntegrationTestSupport {
 
     // ─── 약속 시각 변경 시 임박 알림 이력 초기화 ─────────────────────────────
 
+    // ─── 출발 시간 알림 ──────────────────────────────────────────────────────
+
+    /**
+     * 출발 정보(위치+이동수단+duration)가 완비된 참여자의 약속을 셋업하는 헬퍼.
+     * travelDurationMinutes 를 직접 지정할 수 있다.
+     */
+    private Long saveDepartureReadyAppointment(Member host, Member member,
+                                               LocalDateTime confirmedAt, int travelMinutes) {
+        return transactionTemplate.execute(status -> {
+            Appointment appointment = Appointment.builder()
+                    .title("출발 알림 테스트")
+                    .dateSelectionType(DateSelectionType.SINGLE)
+                    .responseDeadline(confirmedAt.minusDays(1))
+                    .inviteCode("deptime-" + host.getId() + "-" + System.nanoTime())
+                    .build();
+            appointment.addCandidateDate(AppointmentCandidateDate.builder()
+                    .candidateDate(confirmedAt.toLocalDate()).build());
+            AppointmentCandidateLocation location = AppointmentCandidateLocation.builder()
+                    .placeName("강남역").latitude(37.5).longitude(127.0).build();
+            appointment.addCandidateLocation(location);
+            appointment.addParticipant(AppointmentParticipant.builder()
+                    .member(memberRepository.findById(host.getId()).orElseThrow())
+                    .role(ParticipantRole.HOST).status(ParticipationStatus.ACCEPTED).build());
+            appointment.addParticipant(AppointmentParticipant.builder()
+                    .member(memberRepository.findById(member.getId()).orElseThrow())
+                    .role(ParticipantRole.MEMBER).status(ParticipationStatus.ACCEPTED).build());
+            appointmentRepository.save(appointment);
+            appointment.confirmDateTime(confirmedAt.toLocalDate(), confirmedAt.toLocalTime());
+            appointment.confirmLocation(location, "스터디카페", null, null, null);
+
+            AppointmentParticipant memberParticipant =
+                    appointment.findAcceptedParticipant(member.getId()).orElseThrow();
+            memberParticipant.respondAttendance(AttendanceStatus.ATTENDING);
+            memberParticipant.registerDepartureLocation("집",
+                    new BigDecimal("37.5"), new BigDecimal("127.0"));
+            memberParticipant.selectTravelMode(TravelMode.SUBWAY, travelMinutes, confirmedAt.minusDays(1));
+            return appointment.getId();
+        });
+    }
+
+    @Test
+    @DisplayName("출발 권장 시각 30분 전 구간에 진입하면 출발 준비 알림을 1회 발송한다")
+    void departureTime_prepareNotif_sentAtPrepareWindow() {
+        Member host = createMember("방장");
+        Member member = createMember("참여자");
+        // 약속 90분 후 → 출발 권장 60분 후 → 준비 시각 30분 후
+        // now + 31min 이 준비 시각이므로 → now 는 준비 창 직전
+        // 준비 창: [준비시각, 출발시각) = [now+30min, now+60min)
+        // → now.plusMinutes(31) 이 약속 시각이 되도록 설정 → 아니면 아래처럼 직접 계산
+        // 약속 시각 = now + 90min, travel = 60min → 출발 = now+30min → 준비 = now+0min
+        LocalDateTime appointmentTime = now.plusMinutes(90);
+        Long appointmentId = saveDepartureReadyAppointment(host, member, appointmentTime, 60);
+
+        // now 는 준비 창(now+0min ~ now+30min) 의 경계인 now → 발송 대상
+        scheduledNotificationUseCase.sendDepartureTimeNotifications(now);
+
+        assertThat(received(appointmentId, NotificationType.DEPARTURE_PREPARATION_REMINDER))
+                .containsExactly("참여자");
+        assertThat(received(appointmentId, NotificationType.DEPARTURE_START_TIME_REMINDER)).isEmpty();
+    }
+
+    @Test
+    @DisplayName("출발 준비 알림은 중복 발송되지 않는다")
+    void departureTime_prepareNotif_deduplication() {
+        Member host = createMember("방장");
+        Member member = createMember("참여자");
+        LocalDateTime appointmentTime = now.plusMinutes(90);
+        Long appointmentId = saveDepartureReadyAppointment(host, member, appointmentTime, 60);
+
+        scheduledNotificationUseCase.sendDepartureTimeNotifications(now);
+        scheduledNotificationUseCase.sendDepartureTimeNotifications(now.plusMinutes(1));
+
+        assertThat(received(appointmentId, NotificationType.DEPARTURE_PREPARATION_REMINDER))
+                .containsExactly("참여자");
+    }
+
+    @Test
+    @DisplayName("출발 권장 시각이 도래하면 출발 알림을 1회 발송한다")
+    void departureTime_startTimeNotif_sentAtDepartureTime() {
+        Member host = createMember("방장");
+        Member member = createMember("참여자");
+        // travel = 60min, 약속 = now+30min → 출발 = now-30min (이미 지남) → 소급 발송 허용
+        LocalDateTime appointmentTime = now.plusMinutes(30);
+        Long appointmentId = saveDepartureReadyAppointment(host, member, appointmentTime, 60);
+
+        scheduledNotificationUseCase.sendDepartureTimeNotifications(now);
+
+        assertThat(received(appointmentId, NotificationType.DEPARTURE_START_TIME_REMINDER))
+                .containsExactly("참여자");
+        assertThat(received(appointmentId, NotificationType.DEPARTURE_PREPARATION_REMINDER)).isEmpty();
+    }
+
+    @Test
+    @DisplayName("출발 알림은 중복 발송되지 않는다")
+    void departureTime_startTimeNotif_deduplication() {
+        Member host = createMember("방장");
+        Member member = createMember("참여자");
+        LocalDateTime appointmentTime = now.plusMinutes(30);
+        Long appointmentId = saveDepartureReadyAppointment(host, member, appointmentTime, 60);
+
+        scheduledNotificationUseCase.sendDepartureTimeNotifications(now);
+        scheduledNotificationUseCase.sendDepartureTimeNotifications(now.plusMinutes(1));
+
+        assertThat(received(appointmentId, NotificationType.DEPARTURE_START_TIME_REMINDER))
+                .containsExactly("참여자");
+    }
+
+    @Test
+    @DisplayName("준비 알림 시점이 이미 지났으면(출발 시각 초과) 소급 발송하지 않는다")
+    void departureTime_prepareNotif_noRetroactiveSend() {
+        Member host = createMember("방장");
+        Member member = createMember("참여자");
+        // 출발 = now-10min (이미 지남) → 준비 창 [now-40min, now-10min) 는 완전히 지남
+        // 약속 = now+5min (아직 안 지남) → 출발 알림만 발송돼야 함
+        LocalDateTime appointmentTime = now.plusMinutes(5);
+        Long appointmentId = saveDepartureReadyAppointment(host, member, appointmentTime, 15);
+        // travel=15min → 출발=now-10min → 준비=now-40min (이미 지남)
+
+        scheduledNotificationUseCase.sendDepartureTimeNotifications(now);
+
+        assertThat(received(appointmentId, NotificationType.DEPARTURE_PREPARATION_REMINDER)).isEmpty();
+        assertThat(received(appointmentId, NotificationType.DEPARTURE_START_TIME_REMINDER))
+                .containsExactly("참여자");
+    }
+
+    @Test
+    @DisplayName("출발 준비 알림과 출발 알림이 동시에 발송되지 않는다 — 창이 서로 겹치지 않음")
+    void departureTime_prepareAndStartTime_notSimultaneous() {
+        Member host = createMember("방장");
+        Member member = createMember("참여자");
+        // 약속 = now+90min, travel=60min → 출발=now+30min → 준비=now
+        // now 는 준비 창이고 출발 창 이전 → 준비 알림만 발송
+        LocalDateTime appointmentTime = now.plusMinutes(90);
+        Long appointmentId = saveDepartureReadyAppointment(host, member, appointmentTime, 60);
+
+        scheduledNotificationUseCase.sendDepartureTimeNotifications(now);
+
+        assertThat(received(appointmentId, NotificationType.DEPARTURE_PREPARATION_REMINDER))
+                .containsExactly("참여자");
+        assertThat(received(appointmentId, NotificationType.DEPARTURE_START_TIME_REMINDER)).isEmpty();
+    }
+
+    @Test
+    @DisplayName("약속 시각이 이미 지난 경우 출발 시간 알림을 발송하지 않는다")
+    void departureTime_pastAppointment_notSent() {
+        Member host = createMember("방장");
+        Member member = createMember("참여자");
+        Long appointmentId = saveDepartureReadyAppointment(host, member, now.minusMinutes(10), 60);
+
+        scheduledNotificationUseCase.sendDepartureTimeNotifications(now);
+
+        assertThat(received(appointmentId, NotificationType.DEPARTURE_PREPARATION_REMINDER)).isEmpty();
+        assertThat(received(appointmentId, NotificationType.DEPARTURE_START_TIME_REMINDER)).isEmpty();
+    }
+
+    @Test
+    @DisplayName("travelDurationMinutes가 null이면 출발 시간 알림을 발송하지 않는다")
+    void departureTime_nullTravelDuration_excluded() {
+        Member host = createMember("방장");
+        Member member = createMember("참여자");
+        // travel = null 설정 (selectTravelMode를 호출하지 않고 위치만 등록)
+        Long appointmentId = transactionTemplate.execute(status -> {
+            LocalDateTime confirmedAt = now.plusMinutes(60);
+            Appointment appointment = Appointment.builder()
+                    .title("travel null 테스트")
+                    .dateSelectionType(DateSelectionType.SINGLE)
+                    .responseDeadline(confirmedAt.minusDays(1))
+                    .inviteCode("deptime-null-" + System.nanoTime())
+                    .build();
+            appointment.addCandidateDate(AppointmentCandidateDate.builder()
+                    .candidateDate(confirmedAt.toLocalDate()).build());
+            AppointmentCandidateLocation location = AppointmentCandidateLocation.builder()
+                    .placeName("강남역").latitude(37.5).longitude(127.0).build();
+            appointment.addCandidateLocation(location);
+            appointment.addParticipant(AppointmentParticipant.builder()
+                    .member(memberRepository.findById(host.getId()).orElseThrow())
+                    .role(ParticipantRole.HOST).status(ParticipationStatus.ACCEPTED).build());
+            AppointmentParticipant memberParticipant = AppointmentParticipant.builder()
+                    .member(memberRepository.findById(member.getId()).orElseThrow())
+                    .role(ParticipantRole.MEMBER).status(ParticipationStatus.ACCEPTED).build();
+            appointment.addParticipant(memberParticipant);
+            appointmentRepository.save(appointment);
+            appointment.confirmDateTime(confirmedAt.toLocalDate(), confirmedAt.toLocalTime());
+            appointment.confirmLocation(location, "스터디카페", null, null, null);
+            memberParticipant.respondAttendance(AttendanceStatus.ATTENDING);
+            // 위치만 등록, 이동수단(travelMode, duration) 미입력
+            memberParticipant.registerDepartureLocation("집",
+                    new BigDecimal("37.5"), new BigDecimal("127.0"));
+            return appointment.getId();
+        });
+
+        scheduledNotificationUseCase.sendDepartureTimeNotifications(now);
+
+        assertThat(received(appointmentId, NotificationType.DEPARTURE_PREPARATION_REMINDER)).isEmpty();
+        assertThat(received(appointmentId, NotificationType.DEPARTURE_START_TIME_REMINDER)).isEmpty();
+    }
+
+    @Test
+    @DisplayName("travelDurationMinutes가 0이면 출발 시간 알림을 발송하지 않는다")
+    void departureTime_zeroDuration_excluded() {
+        Member host = createMember("방장");
+        Member member = createMember("참여자");
+        Long appointmentId = saveDepartureReadyAppointment(host, member, now.plusMinutes(60), 0);
+        // duration=0은 saveDepartureReadyAppointment 헬퍼의 selectTravelMode(TravelMode.SUBWAY, 0, …)로 저장됨
+        // 하지만 헬퍼 내부에서 duration=0으로 저장되면 isEligibleForDepartureTimeNotif() 에서 false 반환
+
+        scheduledNotificationUseCase.sendDepartureTimeNotifications(now);
+
+        assertThat(received(appointmentId, NotificationType.DEPARTURE_PREPARATION_REMINDER)).isEmpty();
+        assertThat(received(appointmentId, NotificationType.DEPARTURE_START_TIME_REMINDER)).isEmpty();
+    }
+
+    @Test
+    @DisplayName("이미 출발한(DEPARTED) 참여자에게는 출발 시간 알림을 발송하지 않는다")
+    void departureTime_alreadyDeparted_excluded() {
+        Member host = createMember("방장");
+        Member member = createMember("참여자");
+        LocalDateTime appointmentTime = now.plusMinutes(30);
+        Long appointmentId = saveDepartureReadyAppointment(host, member, appointmentTime, 60);
+
+        transactionTemplate.executeWithoutResult(status -> {
+            Appointment appointment = appointmentRepository.findById(appointmentId).orElseThrow();
+            appointment.findAcceptedParticipant(member.getId()).orElseThrow().depart();
+        });
+
+        scheduledNotificationUseCase.sendDepartureTimeNotifications(now);
+
+        assertThat(received(appointmentId, NotificationType.DEPARTURE_START_TIME_REMINDER)).isEmpty();
+    }
+
+    @Test
+    @DisplayName("약속이 취소된 경우 출발 시간 알림을 발송하지 않는다")
+    void departureTime_canceledAppointment_excluded() {
+        Member host = createMember("방장");
+        Member member = createMember("참여자");
+        LocalDateTime appointmentTime = now.plusMinutes(60);
+        Long appointmentId = saveDepartureReadyAppointment(host, member, appointmentTime, 30);
+
+        transactionTemplate.executeWithoutResult(status ->
+                appointmentRepository.findById(appointmentId).orElseThrow().cancel());
+
+        scheduledNotificationUseCase.sendDepartureTimeNotifications(now);
+
+        assertThat(received(appointmentId, NotificationType.DEPARTURE_PREPARATION_REMINDER)).isEmpty();
+        assertThat(received(appointmentId, NotificationType.DEPARTURE_START_TIME_REMINDER)).isEmpty();
+    }
+
+    @Test
+    @DisplayName("참석 취소(NOT_ATTENDING) 참여자에게는 출발 시간 알림을 발송하지 않는다")
+    void departureTime_notAttending_excluded() {
+        Member host = createMember("방장");
+        Member member = createMember("참여자");
+        LocalDateTime appointmentTime = now.plusMinutes(30);
+        Long appointmentId = saveDepartureReadyAppointment(host, member, appointmentTime, 60);
+
+        transactionTemplate.executeWithoutResult(status -> {
+            Appointment appointment = appointmentRepository.findById(appointmentId).orElseThrow();
+            appointment.findAcceptedParticipant(member.getId()).orElseThrow()
+                    .respondAttendance(AttendanceStatus.NOT_ATTENDING);
+        });
+
+        scheduledNotificationUseCase.sendDepartureTimeNotifications(now);
+
+        assertThat(received(appointmentId, NotificationType.DEPARTURE_START_TIME_REMINDER)).isEmpty();
+    }
+
+    @Test
+    @DisplayName("출발 정보 미입력(이동수단 없음) 참여자에게는 출발 시간 알림을 발송하지 않는다")
+    void departureTime_incompleteDepartureInfo_excluded() {
+        Member host = createMember("방장");
+        Member member = createMember("참여자");
+        // 출발 위치만 있고 이동수단 미입력 → hasCompletedDepartureInfo() false
+        Long appointmentId = saveAppointment(host, member, now.minusDays(1),
+                now.plusMinutes(60), AttendanceStatus.ATTENDING);
+
+        transactionTemplate.executeWithoutResult(status -> {
+            Appointment appointment = appointmentRepository.findById(appointmentId).orElseThrow();
+            appointment.findAcceptedParticipant(member.getId()).orElseThrow()
+                    .registerDepartureLocation("집", new BigDecimal("37.5"), new BigDecimal("127.0"));
+        });
+
+        scheduledNotificationUseCase.sendDepartureTimeNotifications(now);
+
+        assertThat(received(appointmentId, NotificationType.DEPARTURE_PREPARATION_REMINDER)).isEmpty();
+        assertThat(received(appointmentId, NotificationType.DEPARTURE_START_TIME_REMINDER)).isEmpty();
+    }
+
+    @Test
+    @DisplayName("약속 시각 변경 시 출발 시간 알림 이력이 초기화되어 변경 후 발송 가능해진다")
+    void departureTime_appointmentTimeChanged_historyReset() {
+        Member host = createMember("방장");
+        Member member = createMember("참여자");
+        // 약속 = now+30min, travel=60min → 출발=now-30min → 출발 알림 발송 가능
+        LocalDateTime appointmentTime = now.plusMinutes(30);
+        Long appointmentId = saveDepartureReadyAppointment(host, member, appointmentTime, 60);
+
+        // 출발 알림 최초 발송
+        scheduledNotificationUseCase.sendDepartureTimeNotifications(now);
+        assertThat(received(appointmentId, NotificationType.DEPARTURE_START_TIME_REMINDER))
+                .containsExactly("참여자");
+
+        // 약속 시각을 now+45min으로 변경 → 이력 초기화 + 참석 상태 초기화
+        // travel=60min → 출발=now-15min (여전히 출발 창 열림), 약속 시각은 여전히 미래
+        transactionTemplate.executeWithoutResult(status -> {
+            Appointment appointment = appointmentRepository.findById(appointmentId).orElseThrow();
+            LocalDateTime newTime = now.plusMinutes(45);
+            appointment.confirmDateTime(newTime.toLocalDate(), newTime.toLocalTime());
+            // confirmDateTime은 출석 상태를 PENDING으로 초기화하므로 재참석 응답 필요
+            appointment.findAcceptedParticipant(member.getId()).orElseThrow()
+                    .respondAttendance(AttendanceStatus.ATTENDING);
+        });
+
+        // 변경된 약속 시각 기준으로 다시 출발 알림 발송 가능 (소급 발송 허용)
+        scheduledNotificationUseCase.sendDepartureTimeNotifications(now);
+        assertThat(received(appointmentId, NotificationType.DEPARTURE_START_TIME_REMINDER)).hasSize(2);
+    }
+
+    @Test
+    @DisplayName("이동 시간이 변경되면 새 이동 시간 기준으로 출발 알림이 발송된다")
+    void departureTime_travelDurationChanged_usesNewDuration() {
+        Member host = createMember("방장");
+        Member member = createMember("참여자");
+        // 약속 = now+120min, travel=100min → 출발=now+20min → 아직 미발송 구간
+        LocalDateTime appointmentTime = now.plusMinutes(120);
+        Long appointmentId = saveDepartureReadyAppointment(host, member, appointmentTime, 100);
+
+        // 첫 실행: 아직 출발 창이 열리지 않음
+        scheduledNotificationUseCase.sendDepartureTimeNotifications(now);
+        assertThat(received(appointmentId, NotificationType.DEPARTURE_START_TIME_REMINDER)).isEmpty();
+
+        // 이동 시간을 130분으로 변경 → 출발=now-10min (이미 지남) → 소급 발송 가능
+        transactionTemplate.executeWithoutResult(status -> {
+            Appointment appointment = appointmentRepository.findById(appointmentId).orElseThrow();
+            appointment.findAcceptedParticipant(member.getId()).orElseThrow()
+                    .selectTravelMode(TravelMode.BUS, 130, now);
+        });
+
+        scheduledNotificationUseCase.sendDepartureTimeNotifications(now);
+        assertThat(received(appointmentId, NotificationType.DEPARTURE_START_TIME_REMINDER))
+                .containsExactly("참여자");
+    }
+
+    @Test
+    @DisplayName("약속 시각이 24시간 이후여도 출발 시각이 오늘이라면 출발 시간 알림을 발송한다")
+    void departureTime_appointmentTomorrow_notifTodayIfDepartureDateToday() {
+        Member host = createMember("방장");
+        Member member = createMember("참여자");
+        // 약속 = now+90min, travel=60min → 출발=now+30min → 준비=now
+        // confirmedDate = today → 오늘 날짜 범위에 포함
+        LocalDateTime appointmentTime = now.plusMinutes(90);
+        Long appointmentId = saveDepartureReadyAppointment(host, member, appointmentTime, 60);
+
+        scheduledNotificationUseCase.sendDepartureTimeNotifications(now);
+
+        assertThat(received(appointmentId, NotificationType.DEPARTURE_PREPARATION_REMINDER))
+                .containsExactly("참여자");
+    }
+
+    // ─── 약속 시각 변경 시 임박 알림 이력 초기화 ─────────────────────────────
     @Test
     @DisplayName("약속 시각 변경 시 임박 알림 이력이 초기화되어 변경 후 임박 구간에서 재발송된다")
     void datetimeReset_upcomingNotifHistoryCleared() {
@@ -650,5 +1010,111 @@ class ScheduledNotificationUseCaseTest extends IntegrationTestSupport {
         scheduledNotificationUseCase.sendDepartureInputReminders(now);
 
         assertThat(received(appointmentId, NotificationType.DEPARTURE_INPUT_REQUESTED)).hasSize(2);
+    }
+
+    // ─── 출발 위치 변경 시 알림 연동 ─────────────────────────────────────────
+
+    @Test
+    @DisplayName("출발 위치 변경 후 travelMode가 null이 되면 #124 입력 요청 알림 대상에 다시 포함된다")
+    void departureLocation_changed_includesInAutoNotifEligible() {
+        Member host = createMember("방장");
+        Member member = createMember("참여자");
+        // 700분 후 → H12 임박 창
+        LocalDateTime appointmentTime = now.plusMinutes(700);
+        Long appointmentId = saveDepartureReadyAppointment(host, member, appointmentTime, 60);
+
+        // 출발 정보 완료 상태 → 임박 알림 대상 아님
+        scheduledNotificationUseCase.sendDepartureInputReminders(now);
+        assertThat(received(appointmentId, NotificationType.DEPARTURE_INPUT_REQUESTED)).isEmpty();
+
+        // 다른 좌표로 출발 위치 변경 → travelMode null → 완료 판정 해제
+        transactionTemplate.executeWithoutResult(status -> {
+            Appointment appointment = appointmentRepository.findById(appointmentId).orElseThrow();
+            appointment.findAcceptedParticipant(member.getId()).orElseThrow()
+                    .registerDepartureLocation("새 위치", new BigDecimal("37.6000000"), new BigDecimal("127.1000000"));
+        });
+
+        // 임박 알림 대상 재포함 → H12 구간에서 발송
+        scheduledNotificationUseCase.sendDepartureInputReminders(now);
+        assertThat(received(appointmentId, NotificationType.DEPARTURE_INPUT_REQUESTED)).containsExactly("참여자");
+    }
+
+    @Test
+    @DisplayName("출발 위치 변경 후 travelMode가 null이면 #126 출발 시간 알림을 발송하지 않는다")
+    void departureLocation_changed_excludedFromDepartureTimeNotif() {
+        Member host = createMember("방장");
+        Member member = createMember("참여자");
+        // 출발 = now-30min(소급 발송 가능), 약속 = now+30min
+        LocalDateTime appointmentTime = now.plusMinutes(30);
+        Long appointmentId = saveDepartureReadyAppointment(host, member, appointmentTime, 60);
+
+        // 다른 좌표로 출발 위치 변경 → travelMode null
+        transactionTemplate.executeWithoutResult(status -> {
+            Appointment appointment = appointmentRepository.findById(appointmentId).orElseThrow();
+            appointment.findAcceptedParticipant(member.getId()).orElseThrow()
+                    .registerDepartureLocation("새 위치", new BigDecimal("37.6000000"), new BigDecimal("127.1000000"));
+        });
+
+        scheduledNotificationUseCase.sendDepartureTimeNotifications(now);
+
+        assertThat(received(appointmentId, NotificationType.DEPARTURE_START_TIME_REMINDER)).isEmpty();
+        assertThat(received(appointmentId, NotificationType.DEPARTURE_PREPARATION_REMINDER)).isEmpty();
+    }
+
+    @Test
+    @DisplayName("출발 위치 변경 후 이동수단을 재선택하면 #126 출발 시간 알림 대상에 복귀한다")
+    void departureLocation_changed_thenTravelModeReselected_eligibleForDepartureTimeNotif() {
+        Member host = createMember("방장");
+        Member member = createMember("참여자");
+        // 출발 = now-30min(소급 발송 가능), 약속 = now+30min
+        LocalDateTime appointmentTime = now.plusMinutes(30);
+        Long appointmentId = saveDepartureReadyAppointment(host, member, appointmentTime, 60);
+
+        // 다른 좌표로 출발 위치 변경 → travelMode null
+        transactionTemplate.executeWithoutResult(status -> {
+            Appointment appointment = appointmentRepository.findById(appointmentId).orElseThrow();
+            appointment.findAcceptedParticipant(member.getId()).orElseThrow()
+                    .registerDepartureLocation("새 위치", new BigDecimal("37.6000000"), new BigDecimal("127.1000000"));
+        });
+
+        // 출발 시간 알림 미발송 확인
+        scheduledNotificationUseCase.sendDepartureTimeNotifications(now);
+        assertThat(received(appointmentId, NotificationType.DEPARTURE_START_TIME_REMINDER)).isEmpty();
+
+        // 이동수단 재선택 → travelMode 복구
+        transactionTemplate.executeWithoutResult(status -> {
+            Appointment appointment = appointmentRepository.findById(appointmentId).orElseThrow();
+            appointment.findAcceptedParticipant(member.getId()).orElseThrow()
+                    .selectTravelMode(TravelMode.BUS, 60, now);
+        });
+
+        // 출발 시간 알림 복귀 (소급 발송 허용)
+        scheduledNotificationUseCase.sendDepartureTimeNotifications(now);
+        assertThat(received(appointmentId, NotificationType.DEPARTURE_START_TIME_REMINDER))
+                .containsExactly("참여자");
+    }
+
+    @Test
+    @DisplayName("동일 좌표로 출발 위치를 재등록해도 travelMode가 유지되어 출발 시간 알림이 정상 발송된다")
+    void departureLocation_sameCoordinates_travelModeRetained_notifStillSent() {
+        Member host = createMember("방장");
+        Member member = createMember("참여자");
+        // 출발 = now-30min(소급 발송 가능), 약속 = now+30min
+        LocalDateTime appointmentTime = now.plusMinutes(30);
+        Long appointmentId = saveDepartureReadyAppointment(host, member, appointmentTime, 60);
+
+        // 동일 좌표로 재등록 (travelMode 유지)
+        transactionTemplate.executeWithoutResult(status -> {
+            Appointment appointment = appointmentRepository.findById(appointmentId).orElseThrow();
+            AppointmentParticipant participant = appointment.findAcceptedParticipant(member.getId()).orElseThrow();
+            // saveDepartureReadyAppointment에서 등록한 좌표와 동일
+            participant.registerDepartureLocation("집 (재등록)",
+                    new BigDecimal("37.5"), new BigDecimal("127.0"));
+        });
+
+        scheduledNotificationUseCase.sendDepartureTimeNotifications(now);
+
+        assertThat(received(appointmentId, NotificationType.DEPARTURE_START_TIME_REMINDER))
+                .containsExactly("참여자");
     }
 }

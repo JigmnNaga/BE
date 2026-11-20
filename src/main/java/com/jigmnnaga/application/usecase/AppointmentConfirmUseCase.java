@@ -10,11 +10,14 @@ import com.jigmnnaga.application.validator.AppointmentAccessValidator;
 import com.jigmnnaga.domain.entity.Appointment;
 import com.jigmnnaga.domain.entity.AppointmentCandidateLocation;
 import com.jigmnnaga.domain.entity.AppointmentParticipant;
+import com.jigmnnaga.global.cache.EtaCache;
+import com.jigmnnaga.global.cache.LatenessCache;
 import com.jigmnnaga.global.util.TimeZones;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.List;
+import java.util.Objects;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
@@ -26,6 +29,8 @@ public class AppointmentConfirmUseCase {
     private final AppointmentAccessValidator appointmentAccessValidator;
     private final AppointmentEventPublisher appointmentEventPublisher;
     private final AppointmentEventFactory appointmentEventFactory;
+    private final EtaCache etaCache;
+    private final LatenessCache latenessCache;
 
     @Transactional
     public void confirmDateTime(Long memberId, Long appointmentId, ConfirmDateTimeRequest request) {
@@ -38,8 +43,23 @@ public class AppointmentConfirmUseCase {
             throw new BusinessException(ErrorCode.INVALID_CONFIRMED_DATE);
         }
 
+        // confirmDateTime() 호출 전에 변경 여부를 감지한다.
+        // Objects.equals()로 null-safe 비교 (최초 확정 시 confirmedDate/Time이 null일 수 있음).
+        boolean dateTimeChanging = !Objects.equals(request.date(), appointment.getConfirmedDate())
+                || !Objects.equals(request.time(), appointment.getConfirmedTime());
+
         ConfirmationSnapshot before = ConfirmationSnapshot.of(appointment);
         appointment.confirmDateTime(request.date(), request.time());
+
+        // 시각이 실제로 변경된 경우 ETA·지각 예측 Redis 캐시 무효화.
+        // DB의 lateNotifSentAt은 Appointment.confirmDateTime() 내부에서 이미 초기화됨.
+        // 무효화 후 다음 위치 업데이트 시 putIfNewer()가 반드시 true를 반환하여
+        // 새 약속 시각 기준의 ETA 브로드캐스트·지각 예상 알림이 누락되지 않는다.
+        if (dateTimeChanging) {
+            etaCache.evictResultsByAppointment(appointmentId);
+            latenessCache.evictByAppointment(appointmentId);
+        }
+
         publishConfirmationEvents(memberId, appointment, before);
     }
 

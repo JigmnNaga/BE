@@ -132,6 +132,10 @@ public class AppointmentParticipant extends BaseEntity {
     @Column(name = "departure_notif_upcoming_1h_sent_at")
     private LocalDateTime departureNotifUpcoming1hSentAt;
 
+    // 지각 예상 알림 이력 (참여자 단위)
+    @Column(name = "late_notif_sent_at")
+    private LocalDateTime lateNotifSentAt;
+
     @Builder
     private AppointmentParticipant(Member member, ParticipantRole role, ParticipationStatus status) {
         this.member = member;
@@ -411,6 +415,16 @@ public class AppointmentParticipant extends BaseEntity {
         }
     }
 
+    // ─── 지각 예상 알림 ────────────────────────────────────────────────────────
+
+    public boolean isLateNotifSent() {
+        return lateNotifSentAt != null;
+    }
+
+    public void markLateNotifSent(LocalDateTime sentAt) {
+        this.lateNotifSentAt = sentAt;
+    }
+
     /** 약속 날짜/시간 변경 시 임박 알림 이력 초기화 */
     public void resetDepartureUpcomingNotifHistory() {
         this.departureNotifUpcoming24hSentAt = null;
@@ -418,6 +432,11 @@ public class AppointmentParticipant extends BaseEntity {
         this.departureNotifUpcoming6hSentAt = null;
         this.departureNotifUpcoming3hSentAt = null;
         this.departureNotifUpcoming1hSentAt = null;
+    }
+
+    /** 약속 날짜/시간 변경 시 지각 예상 알림 이력 초기화 */
+    public void resetLateNotifHistory() {
+        this.lateNotifSentAt = null;
     }
 
     public boolean isHost() {

@@ -96,4 +96,28 @@ class LatenessCacheTest {
         assertThat(ttl).isPositive();
         assertThat(ttl).isLessThanOrEqualTo(600L); // 10분 = 600초
     }
+
+    @Test
+    @DisplayName("evictByAppointment_저장된_지각_예측_캐시를_삭제한다")
+    void evictByAppointment_저장된_지각_예측_캐시를_삭제한다() {
+        LocalDateTime now = LocalDateTime.now();
+        latenessCache.putIfNewer(baseAppointmentId, baseMemberId, 10, true, now);
+
+        latenessCache.evictByAppointment(baseAppointmentId);
+
+        assertThat(latenessCache.get(baseAppointmentId, baseMemberId)).isEmpty();
+    }
+
+    @Test
+    @DisplayName("evictByAppointment_후_putIfNewer_호출_시_항상_true를_반환한다")
+    void evictByAppointment_후_putIfNewer는_항상_최신으로_저장된다() {
+        LocalDateTime now = LocalDateTime.now();
+        latenessCache.putIfNewer(baseAppointmentId, baseMemberId, 10, true, now);
+        latenessCache.evictByAppointment(baseAppointmentId);
+
+        // 무효화 이후에는 동일 calculatedAt이라도 저장 성공해야 한다
+        boolean result = latenessCache.putIfNewer(baseAppointmentId, baseMemberId, 5, false, now);
+
+        assertThat(result).isTrue();
+    }
 }

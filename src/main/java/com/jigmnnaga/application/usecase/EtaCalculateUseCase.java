@@ -36,6 +36,7 @@ public class EtaCalculateUseCase {
     private final KakaoMobilityApiClient kakaoMobilityApiClient;
     private final EtaCache etaCache;
     private final LatenessCache latenessCache;
+    private final LateNotificationUseCase lateNotificationUseCase;
     private final SimpMessagingTemplate messagingTemplate;
 
     /**
@@ -78,9 +79,14 @@ public class EtaCalculateUseCase {
             if (confirmedDateTime != null) {
                 int latenessMinutes = calculateLatenessMinutes(eta, confirmedDateTime);
                 boolean late = latenessMinutes > 0;
-                latenessCache.putIfNewer(appointmentId, memberId, latenessMinutes, late, now);
+                boolean latenessUpdated = latenessCache.putIfNewer(appointmentId, memberId, latenessMinutes, late, now);
                 expectedLatenessMinutes = latenessMinutes;
                 isExpectedLate = late;
+
+                // 최신 ETA 갱신 시에만 지각 예상 알림 발송 시도 (오래된 ETA는 latenessUpdated=false로 차단)
+                if (latenessUpdated && late) {
+                    lateNotificationUseCase.sendIfNeeded(memberId, appointmentId, appointment, latenessMinutes, now);
+                }
             }
 
             // 5. ACCEPTED 참여자 전체에게 브로드캐스트

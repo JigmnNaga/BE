@@ -107,6 +107,16 @@ public class EtaCache {
         }
     }
 
+    /**
+     * 약속의 ETA 결과 캐시를 삭제합니다.
+     *
+     * <p>약속 확정 시각 변경 시 호출하여 오래된 ETA 결과를 무효화합니다.
+     * 쓰로틀 키(TTL 30s)는 삭제하지 않으므로 최대 30초 뒤 자연 만료됩니다.</p>
+     */
+    public void evictResultsByAppointment(Long appointmentId) {
+        redisTemplate.delete(RESULT_KEY_PREFIX + appointmentId);
+    }
+
     public String throttleKey(Long appointmentId, Long memberId) {
         return THROTTLE_KEY_PREFIX + appointmentId + ":" + memberId;
     }

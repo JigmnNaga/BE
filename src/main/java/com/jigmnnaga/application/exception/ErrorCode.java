@@ -83,6 +83,7 @@ public enum ErrorCode {
     ALREADY_DEPARTED(HttpStatus.CONFLICT, "이미 출발한 상태입니다."),
     ALREADY_ARRIVED(HttpStatus.CONFLICT, "이미 도착한 상태입니다."),
     NOT_YET_DEPARTED(HttpStatus.BAD_REQUEST, "아직 출발하지 않았습니다."),
+    DEPARTURE_LOCATION_LOCKED(HttpStatus.CONFLICT, "출발 이후에는 출발 위치를 변경할 수 없습니다."),
     NOT_DEPARTED(HttpStatus.FORBIDDEN, "출발 후에만 위치를 공유할 수 있습니다."),
     LOCATION_SHARING_STOPPED(HttpStatus.FORBIDDEN, "위치 공유를 종료한 상태입니다. 다시 켠 후 공유할 수 있습니다."),
     LOCATION_UPDATE_TOO_FREQUENT(HttpStatus.TOO_MANY_REQUESTS, "위치를 너무 자주 업데이트할 수 없습니다.");

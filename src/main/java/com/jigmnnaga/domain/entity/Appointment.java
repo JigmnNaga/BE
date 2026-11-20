@@ -102,6 +102,7 @@ public class Appointment extends BaseEntity {
         if (isChanged) {
             participants.forEach(AppointmentParticipant::resetAttendance);
             participants.forEach(AppointmentParticipant::resetDepartureUpcomingNotifHistory);
+            participants.forEach(AppointmentParticipant::resetDepartureTimeNotifHistory);
             this.preAppointmentNotifiedAt = null;
         }
         this.confirmedDate = confirmedDate;

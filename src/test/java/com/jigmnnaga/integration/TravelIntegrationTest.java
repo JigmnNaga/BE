@@ -525,4 +525,135 @@ class TravelIntegrationTest extends IntegrationTestSupport {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.message").value("출발했습니다."));
     }
+
+    // ── 출발 위치 변경 시 이동 정보 초기화 ────────────────────────────────────
+
+    @Test
+    @DisplayName("출발 위치를 최초 등록하면 200을 반환하고 위치가 저장된다")
+    void registerDepartureLocation_firstTime_success() throws Exception {
+        Member host = createMember("태양");
+        CreatedAppointment appointment = confirmedAppointment(host);
+
+        perform(put(appointmentPath(appointment) + "/travel/departure-location"), host,
+                Map.of("name", "강남역", "latitude", latitude, "longitude", longitude))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.name").value("강남역"))
+                .andExpect(jsonPath("$.data.latitude").isNumber())
+                .andExpect(jsonPath("$.data.longitude").isNumber());
+    }
+
+    @Test
+    @DisplayName("동일 좌표로 재등록하면 기존 이동수단이 그대로 유지된다")
+    void registerDepartureLocation_sameCoordinates_travelModeRetained() throws Exception {
+        Member host = createMember("태양");
+        CreatedAppointment appointment = confirmedAppointment(host);
+
+        // 위치 최초 등록
+        perform(put(appointmentPath(appointment) + "/travel/departure-location"), host,
+                Map.of("name", "강남역", "latitude", latitude, "longitude", longitude));
+        // 이동수단 선택
+        perform(put(appointmentPath(appointment) + "/travel/mode"), host,
+                Map.of("mode", "BUS", "durationMinutes", 20));
+        // 동일 좌표로 재등록 (이름만 변경)
+        perform(put(appointmentPath(appointment) + "/travel/departure-location"), host,
+                Map.of("name", "강남역 2번 출구", "latitude", latitude, "longitude", longitude));
+
+        // 이동수단 유지 확인
+        perform(get(appointmentPath(appointment)), host)
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.myTravelMode").value("BUS"));
+    }
+
+    @Test
+    @DisplayName("다른 좌표로 출발 위치를 변경하면 이동수단이 초기화된다")
+    void registerDepartureLocation_differentCoordinates_travelModeReset() throws Exception {
+        Member host = createMember("태양");
+        CreatedAppointment appointment = confirmedAppointment(host);
+
+        // 위치 최초 등록 + 이동수단 선택
+        perform(put(appointmentPath(appointment) + "/travel/departure-location"), host,
+                Map.of("name", "강남역", "latitude", latitude, "longitude", longitude));
+        perform(put(appointmentPath(appointment) + "/travel/mode"), host,
+                Map.of("mode", "SUBWAY", "durationMinutes", 30));
+
+        // 다른 좌표로 출발 위치 변경
+        double newLatitude = 37.5665;
+        double newLongitude = 126.9780;
+        perform(put(appointmentPath(appointment) + "/travel/departure-location"), host,
+                Map.of("name", "서울시청", "latitude", newLatitude, "longitude", newLongitude));
+
+        // 이동수단 초기화 확인
+        perform(get(appointmentPath(appointment)), host)
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.myTravelMode").isEmpty());
+    }
+
+    @Test
+    @DisplayName("좌표 변경 후 예상 이동시간을 조회하면 departureTime이 null이다")
+    void registerDepartureLocation_differentCoordinates_departureTimeBecomesNull() throws Exception {
+        Member host = createMember("태양");
+        CreatedAppointment appointment = confirmedAppointment(host);
+        givenTransitRoutes(
+                transitRoute("BUS", 1200, List.<String[]>of(new String[]{"BUS", "1200", "341"})));
+        givenTaxiRoute(900);
+
+        // 위치 최초 등록 + 이동수단 선택
+        perform(put(appointmentPath(appointment) + "/travel/departure-location"), host,
+                Map.of("name", "강남역", "latitude", latitude, "longitude", longitude));
+        perform(put(appointmentPath(appointment) + "/travel/mode"), host,
+                Map.of("mode", "BUS", "durationMinutes", 20));
+
+        // 다른 좌표로 변경 → travelMode null → departureTime null
+        perform(put(appointmentPath(appointment) + "/travel/departure-location"), host,
+                Map.of("name", "서울시청", "latitude", 37.5665, "longitude", 126.9780));
+
+        perform(get(appointmentPath(appointment) + "/travel/estimated-time"), host)
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.departureTime").doesNotExist())
+                .andExpect(jsonPath("$.data.myTravelMode").doesNotExist());
+    }
+
+    @Test
+    @DisplayName("DEPARTED 상태에서 출발 위치 변경을 시도하면 409를 반환한다")
+    void registerDepartureLocation_whenDeparted_returns409() throws Exception {
+        Member host = createMember("태양");
+        CreatedAppointment appointment = confirmedAppointment(host);
+
+        depart(appointment, host).andExpect(status().isOk());
+
+        perform(put(appointmentPath(appointment) + "/travel/departure-location"), host,
+                Map.of("name", "서울시청", "latitude", 37.5665, "longitude", 126.9780))
+                .andExpect(status().isConflict());
+    }
+
+    @Test
+    @DisplayName("ARRIVED 상태에서 출발 위치 변경을 시도하면 409를 반환한다")
+    void registerDepartureLocation_whenArrived_returns409() throws Exception {
+        Member host = createMember("태양");
+        CreatedAppointment appointment = confirmedAppointment(host);
+        depart(appointment, host).andExpect(status().isOk());
+        arrive(appointment, host).andExpect(status().isOk());
+
+        perform(put(appointmentPath(appointment) + "/travel/departure-location"), host,
+                Map.of("name", "서울시청", "latitude", 37.5665, "longitude", 126.9780))
+                .andExpect(status().isConflict());
+    }
+
+    @Test
+    @DisplayName("기존 출발 위치 등록 API는 변경 없이 정상 동작한다 (회귀)")
+    void registerDepartureLocation_regression() throws Exception {
+        Member host = createMember("태양");
+        CreatedAppointment appointment = confirmedAppointment(host);
+        givenTransitRoutes(
+                transitRoute("BUS", 1190, List.<String[]>of(new String[]{"BUS", "480", "341"})));
+        givenTaxiRoute(900);
+
+        perform(put(appointmentPath(appointment) + "/travel/departure-location"), host,
+                Map.of("name", "우리집", "latitude", latitude, "longitude", longitude))
+                .andExpect(status().isOk());
+
+        perform(get(appointmentPath(appointment) + "/travel/estimated-time"), host)
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.destinationName").value("강남역 카페거리"));
+    }
 }

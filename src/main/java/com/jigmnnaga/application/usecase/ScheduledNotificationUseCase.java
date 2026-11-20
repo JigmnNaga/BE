@@ -29,6 +29,8 @@ public class ScheduledNotificationUseCase {
     private static final int PERIODIC_AM_HOUR = 10;
     private static final int PERIODIC_PM_HOUR = 18;
 
+    private static final long PREPARE_BEFORE_DEPARTURE_MINUTES = 30;
+
     private final AppointmentGetService appointmentGetService;
     private final AppointmentEventPublisher appointmentEventPublisher;
     private final AppointmentEventFactory appointmentEventFactory;
@@ -170,6 +172,75 @@ public class ScheduledNotificationUseCase {
                 } else {
                     eligible.forEach(p -> p.markDepartureNotifPeriodicPmSent(now));
                 }
+                count++;
+            }
+        }
+        return count;
+    }
+
+    /**
+     * 출발 시간 알림을 발송한다.
+     *
+     * <p>출발 권장 시각 = 약속 확정 시각 - travelDurationMinutes
+     *
+     * <ul>
+     *   <li>출발 준비 알림: [출발 권장 시각 - 30분, 출발 권장 시각) 구간. 소급 발송 없음.</li>
+     *   <li>출발 알림: [출발 권장 시각, 약속 시각) 구간. 약속 시각 전이면 소급 발송.</li>
+     * </ul>
+     *
+     * <p>두 알림의 발송 구간이 서로 겹치지 않으므로 동시 발송은 발생하지 않는다.
+     */
+    @Transactional
+    public int sendDepartureTimeNotifications(LocalDateTime now) {
+        LocalDate fromDate = now.toLocalDate();
+        LocalDate toDate = now.plusDays(1).toLocalDate();
+
+        List<Appointment> appointments = appointmentGetService
+                .findAllConfirmedForDepartureInputReminder(fromDate, toDate).stream()
+                .filter(Appointment::isConfirmed)
+                .filter(appointment -> !appointment.getConfirmedDateTime().isBefore(now))
+                .toList();
+
+        int count = 0;
+        for (Appointment appointment : appointments) {
+            count += sendDepartureTimeNotificationsForAppointment(appointment, now);
+        }
+        return count;
+    }
+
+    private int sendDepartureTimeNotificationsForAppointment(Appointment appointment, LocalDateTime now) {
+        LocalDateTime appointmentTime = appointment.getConfirmedDateTime();
+        int count = 0;
+
+        for (AppointmentParticipant participant : appointment.getParticipants()) {
+            if (!participant.isEligibleForDepartureTimeNotif()) {
+                continue;
+            }
+
+            LocalDateTime departureTime = appointmentTime.minusMinutes(participant.getTravelDurationMinutes());
+            LocalDateTime prepareTime = departureTime.minusMinutes(PREPARE_BEFORE_DEPARTURE_MINUTES);
+
+            // 출발 준비 알림: [prepareTime, departureTime)
+            // 소급 발송 없음 — now >= departureTime 이면 창이 이미 닫힌 것으로 간주
+            if (!participant.isDeparturePrepareNotifSent()
+                    && !now.isBefore(prepareTime)
+                    && now.isBefore(departureTime)) {
+                appointmentEventPublisher.publishNotification(
+                        appointmentEventFactory.departurePrepareReminder(
+                                appointment, departureTime, List.of(participant.getMember().getId())));
+                participant.markDeparturePrepareNotifSent(now);
+                count++;
+            }
+
+            // 출발 알림: [departureTime, appointmentTime)
+            // 소급 발송 허용 — now >= departureTime 이고 약속 시각 전이면 1회 발송
+            if (!participant.isDepartureStartTimeNotifSent()
+                    && !now.isBefore(departureTime)
+                    && now.isBefore(appointmentTime)) {
+                appointmentEventPublisher.publishNotification(
+                        appointmentEventFactory.departureStartTimeReminder(
+                                appointment, List.of(participant.getMember().getId())));
+                participant.markDepartureStartTimeNotifSent(now);
                 count++;
             }
         }

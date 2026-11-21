@@ -216,4 +216,48 @@ class MemberIntegrationTest extends IntegrationTestSupport {
         assertThat(withdrawn.getProfileImageKey()).isNull();
         assertThat(memberLocationRepository.findAllByMemberIdOrderByIdAsc(member.getId())).isEmpty();
     }
+
+    @Test
+    @DisplayName("위치 공유 설정은 저장 전 기본값으로 조회되고, 저장한 값으로 바뀐다")
+    void locationSharingSetting() throws Exception {
+        Member member = createMember("태양");
+        String path = "/api/v1/members/me/location-sharing";
+
+        perform(get(path), member)
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.enabled").value(true))
+                .andExpect(jsonPath("$.data.scope").value("PARTICIPANTS"))
+                .andExpect(jsonPath("$.data.startMinutesBefore").value(30));
+
+        perform(put(path), member, Map.of("enabled", false, "scope", "NONE", "startMinutesBefore", 60))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.enabled").value(false))
+                .andExpect(jsonPath("$.data.scope").value("NONE"))
+                .andExpect(jsonPath("$.data.startMinutesBefore").value(60));
+
+        perform(get(path), member)
+                .andExpect(jsonPath("$.data.enabled").value(false))
+                .andExpect(jsonPath("$.data.scope").value("NONE"))
+                .andExpect(jsonPath("$.data.startMinutesBefore").value(60));
+    }
+
+    @Test
+    @DisplayName("허용되지 않은 시작 시간, 범위, 누락된 항목은 거부한다")
+    void rejectInvalidLocationSharingSetting() throws Exception {
+        Member member = createMember("태양");
+        String path = "/api/v1/members/me/location-sharing";
+
+        perform(put(path), member, Map.of("enabled", true, "scope", "PARTICIPANTS", "startMinutesBefore", 15))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("INVALID_LOCATION_SHARING_START_MINUTES"));
+        perform(put(path), member, Map.of("enabled", true, "scope", "EVERYONE", "startMinutesBefore", 30))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("INVALID_INPUT_VALUE"));
+        perform(put(path), member, Map.of("enabled", true, "scope", "PARTICIPANTS"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("INVALID_INPUT_VALUE"));
+
+        perform(get(path), member)
+                .andExpect(jsonPath("$.data.startMinutesBefore").value(30));
+    }
 }

@@ -1,12 +1,15 @@
 package com.jigmnnaga.presentation;
 
+import com.jigmnnaga.application.dto.request.LocationSharingSettingRequest;
 import com.jigmnnaga.application.dto.request.MemberLocationRequest;
 import com.jigmnnaga.application.dto.request.ProfileImageUploadUrlRequest;
 import com.jigmnnaga.application.dto.request.ProfileUpdateRequest;
 import com.jigmnnaga.application.dto.response.AppointmentStatsResponse;
+import com.jigmnnaga.application.dto.response.LocationSharingSettingResponse;
 import com.jigmnnaga.application.dto.response.MemberLocationResponse;
 import com.jigmnnaga.application.dto.response.MyInfoResponse;
 import com.jigmnnaga.application.dto.response.ProfileImageUploadUrlResponse;
+import com.jigmnnaga.application.usecase.LocationSharingSettingUseCase;
 import com.jigmnnaga.application.usecase.MemberGetUseCase;
 import com.jigmnnaga.application.usecase.MemberLocationUseCase;
 import com.jigmnnaga.application.usecase.MemberProfileUseCase;
@@ -40,6 +43,7 @@ public class MemberController {
     private final MemberLocationUseCase memberLocationUseCase;
     private final MemberProfileUseCase memberProfileUseCase;
     private final MemberWithdrawUseCase memberWithdrawUseCase;
+    private final LocationSharingSettingUseCase locationSharingSettingUseCase;
 
     @Operation(summary = "내 정보 조회", description = "닉네임, 프로필 이미지, 이메일, 기본 위치 목록을 조회합니다. 직접 올린 프로필 이미지는 1시간 동안 유효한 임시 URL로 내려가므로 URL을 저장하지 말고 필요할 때 다시 조회하세요. 기본 위치가 없으면 locations는 빈 목록입니다.")
     @GetMapping("/me")
@@ -122,6 +126,25 @@ public class MemberController {
     ) {
         memberLocationUseCase.deleteLocation(memberId, locationId);
         return CommonResponse.success(ResponseMessage.MEMBER_LOCATION_DELETE_SUCCESS);
+    }
+
+    @Operation(summary = "위치 공유 설정 조회", description = "마이페이지의 위치 공유 사용 여부, 공유 범위, 공유 시작 시간을 조회합니다. 한 번도 저장하지 않은 회원은 기본값(enabled=true, scope=PARTICIPANTS, startMinutesBefore=30)이 내려갑니다.")
+    @GetMapping("/me/location-sharing")
+    public CommonResponse<LocationSharingSettingResponse> getLocationSharingSetting(
+            @Parameter(hidden = true) @LoginMember Long memberId
+    ) {
+        LocationSharingSettingResponse response = locationSharingSettingUseCase.getSetting(memberId);
+        return CommonResponse.success(ResponseMessage.LOCATION_SHARING_SETTING_GET_SUCCESS, response);
+    }
+
+    @Operation(summary = "위치 공유 설정 저장", description = "위치 공유 사용 여부, 공유 범위(PARTICIPANTS: 약속에 참여한 친구만, NONE: 공유 안 함), 공유 시작 시간(약속 몇 분 전, 10·30·60 중 하나)을 저장합니다. 세 항목을 모두 보내야 하며, 저장된 설정을 그대로 돌려줍니다.")
+    @PutMapping("/me/location-sharing")
+    public CommonResponse<LocationSharingSettingResponse> updateLocationSharingSetting(
+            @Parameter(hidden = true) @LoginMember Long memberId,
+            @RequestBody @Valid LocationSharingSettingRequest request
+    ) {
+        LocationSharingSettingResponse response = locationSharingSettingUseCase.updateSetting(memberId, request);
+        return CommonResponse.success(ResponseMessage.LOCATION_SHARING_SETTING_UPDATE_SUCCESS, response);
     }
 
     @Operation(summary = "회원 탈퇴", description = "회원 정보를 익명화하고 카카오 연결을 끊습니다. 응답 대기 중인 초대와 다가오는 약속 참여는 삭제됩니다. 다가오는 약속의 방장인 경우 참여자가 2명 이하면 약속방을 삭제하고, 3명 이상이면 가장 먼저 참여한 멤버에게 방장을 위임합니다. 지난 약속·취소된 약속의 기록은 '탈퇴한 사용자'로 보존됩니다. 직접 올린 프로필 이미지와 기본 위치 목록도 삭제됩니다.")

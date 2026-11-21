@@ -22,6 +22,8 @@ public enum ResponseMessage {
     MEMBER_LOCATION_CREATE_SUCCESS("기본 위치를 등록했습니다."),
     MEMBER_LOCATION_UPDATE_SUCCESS("기본 위치를 수정했습니다."),
     MEMBER_LOCATION_DELETE_SUCCESS("기본 위치를 삭제했습니다."),
+    LOCATION_SHARING_SETTING_GET_SUCCESS("위치 공유 설정을 조회했습니다."),
+    LOCATION_SHARING_SETTING_UPDATE_SUCCESS("위치 공유 설정을 저장했습니다."),
     APPOINTMENT_CREATE_SUCCESS("약속방이 생성되었습니다."),
     INVITE_GET_SUCCESS("초대 정보를 조회했습니다."),
     INVITE_ACCEPT_SUCCESS("약속을 수락했습니다."),

@@ -14,6 +14,7 @@ import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import org.hibernate.annotations.ColumnDefault;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
 
@@ -54,6 +55,20 @@ public class Member extends BaseEntity {
 
     private LocalDateTime withdrawnAt;
 
+    @ColumnDefault("true")
+    @Column(nullable = false)
+    private boolean locationSharingEnabled = true;
+
+    @Enumerated(EnumType.STRING)
+    @JdbcTypeCode(SqlTypes.VARCHAR)
+    @ColumnDefault("'PARTICIPANTS'")
+    @Column(nullable = false, length = 20)
+    private LocationSharingScope locationSharingScope = LocationSharingScope.PARTICIPANTS;
+
+    @ColumnDefault("30")
+    @Column(name = "location_sharing_start_minutes", nullable = false)
+    private int locationSharingStartMinutes = 30;
+
     @Builder
     private Member(AuthProvider provider, String providerId, String nickname, String profileImageUrl, String email,
                    Role role) {
@@ -81,6 +96,12 @@ public class Member extends BaseEntity {
     public void changeProfileImage(String profileImageKey) {
         this.profileImageKey = profileImageKey;
         this.profileImageUrl = null;
+    }
+
+    public void updateLocationSharingSetting(boolean enabled, LocationSharingScope scope, int startMinutes) {
+        this.locationSharingEnabled = enabled;
+        this.locationSharingScope = scope;
+        this.locationSharingStartMinutes = startMinutes;
     }
 
     public void removeProfileImage() {

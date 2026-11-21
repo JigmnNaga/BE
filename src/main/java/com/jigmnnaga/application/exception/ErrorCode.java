@@ -25,6 +25,7 @@ public enum ErrorCode {
     PROFILE_IMAGE_NOT_UPLOADED(HttpStatus.BAD_REQUEST, "프로필 이미지 업로드가 완료되지 않았습니다."),
     MEMBER_LOCATION_NOT_FOUND(HttpStatus.NOT_FOUND, "존재하지 않는 기본 위치입니다."),
     MEMBER_LOCATION_LIMIT_EXCEEDED(HttpStatus.BAD_REQUEST, "기본 위치는 최대 10개까지 저장할 수 있습니다."),
+    INVALID_LOCATION_SHARING_START_MINUTES(HttpStatus.BAD_REQUEST, "위치 공유 시작 시간은 10분, 30분, 60분 전 중에서만 선택할 수 있습니다."),
     EMPTY_PROFILE_UPDATE(HttpStatus.BAD_REQUEST, "수정할 닉네임 또는 프로필 이미지를 입력해주세요."),
     FILE_STORAGE_FAILED(HttpStatus.BAD_GATEWAY, "파일 저장소 요청에 실패했습니다. 잠시 후 다시 시도해주세요."),
     WITHDRAWN_MEMBER(HttpStatus.UNAUTHORIZED, "탈퇴한 회원입니다."),

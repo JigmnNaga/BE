@@ -2,19 +2,27 @@ package com.jigmnnaga.application.mapper;
 
 import com.jigmnnaga.application.dto.response.CalendarResponse;
 import com.jigmnnaga.application.dto.response.MyAppointmentResponse;
+import com.jigmnnaga.application.dto.response.MyAppointmentResponse.MemberProfileResponse;
 import com.jigmnnaga.domain.entity.Appointment;
+import com.jigmnnaga.domain.entity.AppointmentParticipant;
+import com.jigmnnaga.domain.entity.ParticipationStatus;
 import java.time.LocalDate;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
 import java.util.stream.Collectors;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
 @Component
+@RequiredArgsConstructor
 public class MyAppointmentMapper {
 
-    public MyAppointmentResponse toMyAppointmentResponse(Appointment appointment, Map<Long, Long> unreadCounts) {
+    private final ProfileImageUrlResolver profileImageUrlResolver;
+
+    public MyAppointmentResponse toMyAppointmentResponse(Appointment appointment, Long memberId,
+                                                         Map<Long, Long> unreadCounts) {
         return MyAppointmentResponse.builder()
                 .appointmentId(appointment.getId())
                 .title(appointment.getTitle())
@@ -29,11 +37,30 @@ public class MyAppointmentMapper {
                 .candidateStartDate(appointment.getFirstCandidateDate())
                 .candidateEndDate(appointment.getLastCandidateDate())
                 .memberCount(appointment.getAcceptedMemberCount())
+                .participants(toParticipantProfiles(appointment, memberId))
                 .unreadMessageCount(unreadCounts.getOrDefault(appointment.getId(), 0L).intValue())
                 .build();
     }
 
-    public CalendarResponse toCalendarResponse(List<Appointment> appointments, Map<Long, Long> unreadCounts) {
+    // 목록 카드의 프로필 묶음: 나 → 방장 → 참여한 순서
+    private List<MemberProfileResponse> toParticipantProfiles(Appointment appointment, Long memberId) {
+        return appointment.getParticipants().stream()
+                .filter(participant -> participant.getStatus() == ParticipationStatus.ACCEPTED)
+                .sorted(Comparator
+                        .comparing((AppointmentParticipant participant) ->
+                                !participant.getMember().getId().equals(memberId))
+                        .thenComparing(participant -> !participant.isHost())
+                        .thenComparing(AppointmentParticipant::getId))
+                .map(participant -> MemberProfileResponse.builder()
+                        .memberId(participant.getMember().getId())
+                        .nickname(participant.getMember().getNickname())
+                        .profileImageUrl(profileImageUrlResolver.resolve(participant.getMember()))
+                        .build())
+                .toList();
+    }
+
+    public CalendarResponse toCalendarResponse(List<Appointment> appointments, Long memberId,
+                                               Map<Long, Long> unreadCounts) {
         Map<LocalDate, List<Appointment>> appointmentsByDate = appointments.stream()
                 .collect(Collectors.groupingBy(Appointment::getConfirmedDate, TreeMap::new, Collectors.toList()));
 
@@ -42,7 +69,7 @@ public class MyAppointmentMapper {
                         .date(entry.getKey())
                         .appointments(entry.getValue().stream()
                                 .sorted(Comparator.comparing(Appointment::getConfirmedTime))
-                                .map(appointment -> toMyAppointmentResponse(appointment, unreadCounts))
+                                .map(appointment -> toMyAppointmentResponse(appointment, memberId, unreadCounts))
                                 .toList())
                         .build())
                 .toList();

@@ -96,4 +96,24 @@ class MyAppointmentIntegrationTest extends IntegrationTestSupport {
         assertThat(titles).containsExactly("확정 약속");
         perform(get("/api/v1/appointments/me").param("type", "UNKNOWN"), member).andExpect(status().isBadRequest());
     }
+
+    @Test
+    @DisplayName("약속 목록에는 수락한 참여자 프로필이 나, 방장, 참여 순서로 담긴다")
+    void participantProfiles() throws Exception {
+        Member host = createMember("방장");
+        Member first = createMember("채원");
+        Member me = createMember("도윤");
+        CreatedAppointment appointment = createAppointment(host);
+        accept(appointment, first);
+        accept(appointment, me);
+
+        JsonNode item = data(perform(get("/api/v1/appointments/me").param("type", "UPCOMING"), me)).get(0);
+
+        assertThat(item.get("memberCount").asInt()).isEqualTo(3);
+        List<Long> memberIds = new ArrayList<>();
+        item.get("participants").forEach(participant -> memberIds.add(participant.get("memberId").asLong()));
+        assertThat(memberIds).containsExactly(me.getId(), host.getId(), first.getId());
+        assertThat(item.get("participants").get(1).get("nickname").asString()).isEqualTo("방장");
+        assertThat(item.get("participants").get(1).has("profileImageUrl")).isTrue();
+    }
 }

@@ -40,7 +40,7 @@ public class MyAppointmentGetUseCase {
         return getMyAcceptedAppointments(memberId).stream()
                 .filter(appointment -> appointment.isUpcoming(now) == isUpcoming)
                 .sorted(comparator)
-                .map(appointment -> myAppointmentMapper.toMyAppointmentResponse(appointment, unreadCounts))
+                .map(appointment -> myAppointmentMapper.toMyAppointmentResponse(appointment, memberId, unreadCounts))
                 .toList();
     }
 
@@ -53,7 +53,7 @@ public class MyAppointmentGetUseCase {
                 .filter(appointment -> appointment.getConfirmedDate() != null && appointment.isUpcoming(now))
                 .min(Comparator.comparing(Appointment::getConfirmedDateTime))
                 .map(appointment -> myAppointmentMapper.toMyAppointmentResponse(
-                        appointment, chatMessageGetService.countUnreadTextMessagesByAppointment(memberId)))
+                        appointment, memberId, chatMessageGetService.countUnreadTextMessagesByAppointment(memberId)))
                 .orElse(null);
     }
 
@@ -68,7 +68,7 @@ public class MyAppointmentGetUseCase {
                 .toList();
 
         return myAppointmentMapper.toCalendarResponse(
-                appointments, chatMessageGetService.countUnreadTextMessagesByAppointment(memberId));
+                appointments, memberId, chatMessageGetService.countUnreadTextMessagesByAppointment(memberId));
     }
 
     private List<Appointment> getMyAcceptedAppointments(Long memberId) {

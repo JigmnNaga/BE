@@ -3,6 +3,7 @@ package com.jigmnnaga.application.dto.response;
 import com.fasterxml.jackson.annotation.JsonFormat;
 import java.time.LocalDate;
 import java.time.LocalTime;
+import java.util.List;
 import lombok.Builder;
 
 @Builder
@@ -18,6 +19,15 @@ public record MyAppointmentResponse(
         LocalDate candidateStartDate,
         LocalDate candidateEndDate,
         int memberCount,
+        List<MemberProfileResponse> participants,
         int unreadMessageCount
 ) {
+
+    @Builder
+    public record MemberProfileResponse(
+            Long memberId,
+            String nickname,
+            String profileImageUrl
+    ) {
+    }
 }

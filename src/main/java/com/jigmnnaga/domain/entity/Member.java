@@ -50,6 +50,12 @@ public class Member extends BaseEntity {
     private String email;
 
     @Enumerated(EnumType.STRING)
+    @JdbcTypeCode(SqlTypes.VARCHAR)
+    @ColumnDefault("'OLIVE'")
+    @Column(nullable = false, length = 20)
+    private ProfileColor profileColor = ProfileColor.OLIVE;
+
+    @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private Role role;
 
@@ -91,6 +97,10 @@ public class Member extends BaseEntity {
 
     public void updateNickname(String nickname) {
         this.nickname = nickname;
+    }
+
+    public void changeProfileColor(ProfileColor profileColor) {
+        this.profileColor = profileColor;
     }
 
     public void changeProfileImage(String profileImageKey) {

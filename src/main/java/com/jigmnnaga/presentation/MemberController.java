@@ -45,7 +45,7 @@ public class MemberController {
     private final MemberWithdrawUseCase memberWithdrawUseCase;
     private final LocationSharingSettingUseCase locationSharingSettingUseCase;
 
-    @Operation(summary = "내 정보 조회", description = "닉네임, 프로필 이미지, 이메일, 기본 위치 목록을 조회합니다. 직접 올린 프로필 이미지는 1시간 동안 유효한 임시 URL로 내려가므로 URL을 저장하지 말고 필요할 때 다시 조회하세요. 기본 위치가 없으면 locations는 빈 목록입니다.")
+    @Operation(summary = "내 정보 조회", description = "닉네임, 프로필 이미지, 프로필 색상, 이메일, 가입일(joinedAt, yyyy-MM-dd), 기본 위치 목록을 조회합니다. 직접 올린 프로필 이미지는 1시간 동안 유효한 임시 URL로 내려가므로 URL을 저장하지 말고 필요할 때 다시 조회하세요. 기본 위치가 없으면 locations는 빈 목록입니다.")
     @GetMapping("/me")
     public CommonResponse<MyInfoResponse> getMyInfo(@Parameter(hidden = true) @LoginMember Long memberId) {
         MyInfoResponse response = memberGetUseCase.getMyInfo(memberId);
@@ -71,7 +71,7 @@ public class MemberController {
         return CommonResponse.success(ResponseMessage.PROFILE_IMAGE_UPLOAD_URL_ISSUE_SUCCESS, response);
     }
 
-    @Operation(summary = "프로필 수정", description = "닉네임(1~20자)과 프로필 이미지를 수정합니다. 보낸 항목만 변경되며, 둘 다 생략할 수 없습니다. profileImageKey는 업로드 URL 발급 시 받은 키를 S3 업로드 완료 후 보내야 하며, 기존에 올린 이미지는 삭제됩니다.")
+    @Operation(summary = "프로필 수정", description = "닉네임(1~20자), 프로필 이미지, 프로필 색상을 수정합니다. 보낸 항목만 변경되며, 모두 생략할 수는 없습니다. 프로필 색상은 OLIVE, SAGE, LIME, YELLOW, PEACH, MAUVE, LAVENDER 중 하나입니다(기본 OLIVE). profileImageKey는 업로드 URL 발급 시 받은 키를 S3 업로드 완료 후 보내야 하며, 기존에 올린 이미지는 삭제됩니다.")
     @PatchMapping("/me/profile")
     public CommonResponse<MyInfoResponse> updateProfile(
             @Parameter(hidden = true) @LoginMember Long memberId,

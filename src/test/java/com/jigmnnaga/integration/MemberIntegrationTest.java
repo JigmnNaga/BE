@@ -260,4 +260,26 @@ class MemberIntegrationTest extends IntegrationTestSupport {
         perform(get(path), member)
                 .andExpect(jsonPath("$.data.startMinutesBefore").value(30));
     }
+
+    @Test
+    @DisplayName("내 정보에 가입일과 기본 프로필 색상이 내려오고, 프로필 색상만 따로 수정할 수 있다")
+    void profileColorAndJoinedAt() throws Exception {
+        Member member = createMember("태양");
+
+        perform(get("/api/v1/members/me"), member)
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.profileColor").value("OLIVE"))
+                .andExpect(jsonPath("$.data.joinedAt").value(member.getCreatedAt().toLocalDate().toString()));
+
+        perform(patch("/api/v1/members/me/profile"), member, Map.of("profileColor", "LAVENDER"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.profileColor").value("LAVENDER"))
+                .andExpect(jsonPath("$.data.nickname").value("태양"));
+        perform(get("/api/v1/members/me"), member)
+                .andExpect(jsonPath("$.data.profileColor").value("LAVENDER"));
+
+        perform(patch("/api/v1/members/me/profile"), member, Map.of("profileColor", "BLACK"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("INVALID_INPUT_VALUE"));
+    }
 }

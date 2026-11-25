@@ -1,5 +1,6 @@
 package com.jigmnnaga.application.dto.response;
 
+import com.jigmnnaga.domain.entity.ProfileColor;
 import java.util.List;
 import lombok.Builder;
 
@@ -16,6 +17,7 @@ public record ScheduleStatusResponse(
             Long memberId,
             String nickname,
             String profileImageUrl,
+            ProfileColor profileColor,
             boolean submitted,
             List<AvailabilityResponse> availabilities,
             Long preferredLocationId
@@ -38,7 +40,8 @@ public record ScheduleStatusResponse(
     public record VoterResponse(
             Long memberId,
             String nickname,
-            String profileImageUrl
+            String profileImageUrl,
+            ProfileColor profileColor
     ) {
     }
 }

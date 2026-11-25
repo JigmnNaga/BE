@@ -1,5 +1,6 @@
 package com.jigmnnaga.application.dto.response;
 
+import com.jigmnnaga.domain.entity.ProfileColor;
 import java.time.LocalDate;
 import java.util.List;
 import lombok.Builder;
@@ -42,7 +43,8 @@ public record ScheduleHeatmapResponse(
     public record HeatmapMemberResponse(
             Long memberId,
             String nickname,
-            String profileImageUrl
+            String profileImageUrl,
+            ProfileColor profileColor
     ) {
     }
 }

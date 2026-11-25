@@ -2,6 +2,7 @@ package com.jigmnnaga.integration;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.jigmnnaga.domain.entity.Appointment;
@@ -19,6 +20,7 @@ import java.time.LocalTime;
 import java.time.YearMonth;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -115,5 +117,27 @@ class MyAppointmentIntegrationTest extends IntegrationTestSupport {
         assertThat(memberIds).containsExactly(me.getId(), host.getId(), first.getId());
         assertThat(item.get("participants").get(1).get("nickname").asString()).isEqualTo("방장");
         assertThat(item.get("participants").get(1).has("profileImageUrl")).isTrue();
+        assertThat(item.get("participants").get(1).get("profileColor").asString()).isEqualTo("OLIVE");
+    }
+
+    @Test
+    @DisplayName("내가 고른 프로필 색상은 다른 참여자의 약속 목록과 약속 상세에도 보인다")
+    void profileColorVisibleToOthers() throws Exception {
+        Member host = createMember("방장");
+        Member me = createMember("도윤");
+        CreatedAppointment appointment = createAppointment(host);
+        accept(appointment, me);
+
+        perform(patch("/api/v1/members/me/profile"), host, Map.of("profileColor", "PEACH"))
+                .andExpect(status().isOk());
+
+        JsonNode item = data(perform(get("/api/v1/appointments/me").param("type", "UPCOMING"), me)).get(0);
+        assertThat(item.get("participants").get(0).get("profileColor").asString()).isEqualTo("OLIVE");
+        assertThat(item.get("participants").get(1).get("profileColor").asString()).isEqualTo("PEACH");
+
+        JsonNode detail = data(perform(get(appointmentPath(appointment)), me));
+        JsonNode hostStatus = detail.get("members").get(0);
+        assertThat(hostStatus.get("memberId").asLong()).isEqualTo(host.getId());
+        assertThat(hostStatus.get("profileColor").asString()).isEqualTo("PEACH");
     }
 }

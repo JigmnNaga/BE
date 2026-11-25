@@ -91,6 +91,7 @@ public class AppointmentMapper {
                         .memberId(participant.getMember().getId())
                         .nickname(participant.getMember().getNickname())
                         .profileImageUrl(profileImageUrlResolver.resolve(participant.getMember()))
+                        .profileColor(participant.getMember().getProfileColor())
                         .role(participant.getRole())
                         .scheduleSubmitted(participant.hasSubmittedSchedule())
                         .attendanceStatus(participant.getAttendanceStatus())

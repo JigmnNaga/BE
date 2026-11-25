@@ -55,6 +55,7 @@ public class MyAppointmentMapper {
                         .memberId(participant.getMember().getId())
                         .nickname(participant.getMember().getNickname())
                         .profileImageUrl(profileImageUrlResolver.resolve(participant.getMember()))
+                        .profileColor(participant.getMember().getProfileColor())
                         .build())
                 .toList();
     }

@@ -84,6 +84,7 @@ public class InviteMapper {
                 .memberId(member.getId())
                 .nickname(member.getNickname())
                 .profileImageUrl(profileImageUrlResolver.resolve(member))
+                .profileColor(member.getProfileColor())
                 .role(participant.getRole())
                 .status(participant.getStatus())
                 .build();

@@ -50,6 +50,7 @@ public class ChatMessageMapper {
                 .senderId(sender == null ? null : sender.getId())
                 .senderNickname(sender == null ? null : sender.getNickname())
                 .senderProfileImageUrl(profileImageUrlResolver.resolve(sender))
+                .senderProfileColor(sender == null ? null : sender.getProfileColor())
                 .content(chatMessage.getContent())
                 .sentAt(chatMessage.getCreatedAt())
                 .unreadCount(chatMessage.getType() == ChatMessageType.SYSTEM ? null : unreadCount)

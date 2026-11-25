@@ -66,7 +66,9 @@ public class MemberMapper {
                 .memberId(member.getId())
                 .nickname(member.getNickname())
                 .profileImageUrl(profileImageUrlResolver.resolve(member))
+                .profileColor(member.getProfileColor())
                 .email(member.getEmail())
+                .joinedAt(member.getCreatedAt() == null ? null : member.getCreatedAt().toLocalDate())
                 .locations(locations.stream().map(this::toLocationResponse).toList())
                 .build();
     }

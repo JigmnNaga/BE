@@ -59,13 +59,16 @@ public class MemberProfileUseCase {
 
     @Transactional
     public MyInfoResponse updateProfile(Long memberId, ProfileUpdateRequest request) {
-        if (request.nickname() == null && request.profileImageKey() == null) {
+        if (request.nickname() == null && request.profileImageKey() == null && request.profileColor() == null) {
             throw new BusinessException(ErrorCode.EMPTY_PROFILE_UPDATE);
         }
         Member member = getMember(memberId);
 
         if (request.nickname() != null) {
             member.updateNickname(request.nickname().strip());
+        }
+        if (request.profileColor() != null) {
+            member.changeProfileColor(request.profileColor());
         }
         if (request.profileImageKey() != null && !request.profileImageKey().equals(member.getProfileImageKey())) {
             validateUploadedImage(memberId, request.profileImageKey());

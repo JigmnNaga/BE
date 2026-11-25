@@ -1,5 +1,6 @@
 package com.jigmnnaga.application.dto.request;
 
+import com.jigmnnaga.domain.entity.ProfileColor;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
@@ -13,6 +14,10 @@ public record ProfileUpdateRequest(
 
         @Schema(description = "업로드 URL 발급 시 받은 프로필 이미지 키 (생략하면 유지)", example = "profiles/1/3f2a9c1e-....jpg")
         @Size(max = 255)
-        String profileImageKey
+        String profileImageKey,
+
+        @Schema(description = "변경할 프로필 색상 (OLIVE, SAGE, LIME, YELLOW, PEACH, MAUVE, LAVENDER, 생략하면 유지)",
+                example = "SAGE")
+        ProfileColor profileColor
 ) {
 }

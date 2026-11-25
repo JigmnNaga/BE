@@ -73,6 +73,7 @@ public class ScheduleMapper {
                 .memberId(member.getId())
                 .nickname(member.getNickname())
                 .profileImageUrl(profileImageUrlResolver.resolve(member))
+                .profileColor(member.getProfileColor())
                 .submitted(participant.hasSubmittedSchedule())
                 .availabilities(toAvailabilityResponses(participant))
                 .preferredLocationId(getPreferredLocationId(participant))
@@ -96,6 +97,7 @@ public class ScheduleMapper {
                                 .memberId(voter.getId())
                                 .nickname(voter.getNickname())
                                 .profileImageUrl(profileImageUrlResolver.resolve(voter))
+                                .profileColor(voter.getProfileColor())
                                 .build())
                         .toList())
                 .build();

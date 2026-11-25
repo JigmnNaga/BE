@@ -1,6 +1,7 @@
 package com.jigmnnaga.application.dto.response;
 
 import com.fasterxml.jackson.annotation.JsonFormat;
+import com.jigmnnaga.domain.entity.ProfileColor;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.List;
@@ -27,7 +28,8 @@ public record MyAppointmentResponse(
     public record MemberProfileResponse(
             Long memberId,
             String nickname,
-            String profileImageUrl
+            String profileImageUrl,
+            ProfileColor profileColor
     ) {
     }
 }

@@ -4,6 +4,7 @@ import com.fasterxml.jackson.annotation.JsonFormat;
 import com.jigmnnaga.domain.entity.AttendanceStatus;
 import com.jigmnnaga.domain.entity.DateSelectionType;
 import com.jigmnnaga.domain.entity.ParticipantRole;
+import com.jigmnnaga.domain.entity.ProfileColor;
 import com.jigmnnaga.domain.entity.TravelMode;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -60,6 +61,7 @@ public record AppointmentDetailResponse(
             Long memberId,
             String nickname,
             String profileImageUrl,
+            ProfileColor profileColor,
             ParticipantRole role,
             boolean scheduleSubmitted,
             AttendanceStatus attendanceStatus,

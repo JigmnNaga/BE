@@ -143,6 +143,7 @@ public class ScheduleHeatmapMapper {
                         .memberId(member.getId())
                         .nickname(member.getNickname())
                         .profileImageUrl(profileImageUrlResolver.resolve(member))
+                        .profileColor(member.getProfileColor())
                         .build())
                 .toList();
     }

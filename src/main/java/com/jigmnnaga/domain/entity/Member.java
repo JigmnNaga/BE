@@ -75,6 +75,26 @@ public class Member extends BaseEntity {
     @Column(name = "location_sharing_start_minutes", nullable = false)
     private int locationSharingStartMinutes = 30;
 
+    @ColumnDefault("true")
+    @Column(nullable = false)
+    private boolean allNotificationsEnabled = true;
+
+    @ColumnDefault("true")
+    @Column(nullable = false)
+    private boolean appointmentReminderEnabled = true;
+
+    @ColumnDefault("true")
+    @Column(nullable = false)
+    private boolean departureTimeEnabled = true;
+
+    @ColumnDefault("true")
+    @Column(nullable = false)
+    private boolean friendArrivalEnabled = true;
+
+    @ColumnDefault("false")
+    @Column(nullable = false)
+    private boolean marketingEnabled = false;
+
     @Builder
     private Member(AuthProvider provider, String providerId, String nickname, String profileImageUrl, String email,
                    Role role) {
@@ -112,6 +132,32 @@ public class Member extends BaseEntity {
         this.locationSharingEnabled = enabled;
         this.locationSharingScope = scope;
         this.locationSharingStartMinutes = startMinutes;
+    }
+
+    public void updateNotificationSettings(boolean allNotificationsEnabled, boolean appointmentReminderEnabled,
+                                           boolean departureTimeEnabled, boolean friendArrivalEnabled,
+                                           boolean marketingEnabled) {
+        this.allNotificationsEnabled = allNotificationsEnabled;
+        this.appointmentReminderEnabled = appointmentReminderEnabled;
+        this.departureTimeEnabled = departureTimeEnabled;
+        this.friendArrivalEnabled = friendArrivalEnabled;
+        this.marketingEnabled = marketingEnabled;
+    }
+
+    public boolean isPushAllowedFor(NotificationType type) {
+        if (!allNotificationsEnabled) {
+            return false;
+        }
+        return switch (type) {
+            case INVITED, SCHEDULE_INPUT_REQUESTED, APPOINTMENT_CONFIRMED, APPOINTMENT_CHANGED,
+                 APPOINTMENT_CANCELED, ATTENDANCE_REQUESTED, HOST_DELEGATED, KICKED,
+                 VOTE_DEADLINE_SOON, RESPONSE_DEADLINE_CLOSED, APPOINTMENT_SOON, RESCHEDULE_REQUESTED
+                 -> appointmentReminderEnabled;
+            case DEPARTURE_INPUT_REQUESTED, DEPARTURE_PREPARATION_REMINDER, DEPARTURE_START_TIME_REMINDER
+                 -> departureTimeEnabled;
+            case DEPARTED, LATE_EXPECTED, ARRIVED
+                 -> friendArrivalEnabled;
+        };
     }
 
     public void removeProfileImage() {

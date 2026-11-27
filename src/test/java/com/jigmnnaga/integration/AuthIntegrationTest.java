@@ -13,6 +13,7 @@ import static org.mockito.Mockito.when;
 
 import com.jigmnnaga.application.exception.BusinessException;
 import com.jigmnnaga.application.exception.ErrorCode;
+import com.jigmnnaga.application.dto.response.kakao.KakaoUserInfoResponse;
 import com.jigmnnaga.domain.entity.AuthProvider;
 import com.jigmnnaga.domain.entity.Member;
 import com.jigmnnaga.domain.service.RefreshTokenSaveService;
@@ -175,5 +176,33 @@ class AuthIntegrationTest extends IntegrationTestSupport {
     void unauthorized() throws Exception {
         mockMvc.perform(MockMvcRequestBuilders.get("/api/v1/appointments/me").param("type", "UPCOMING"))
                 .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    @DisplayName("이메일 없이 가입한 카카오 회원은 다음 로그인에서 받은 이메일로 채워지고, 이미 있는 이메일은 바뀌지 않는다")
+    void kakaoLoginFillsMissingEmail() throws Exception {
+        long kakaoId = System.nanoTime();
+        when(kakaoApiClient.getUserInfo("no-email-token")).thenReturn(kakaoUser(kakaoId, null));
+        when(kakaoApiClient.getUserInfo("email-token")).thenReturn(kakaoUser(kakaoId, "first@kakao.com"));
+        when(kakaoApiClient.getUserInfo("other-email-token")).thenReturn(kakaoUser(kakaoId, "second@kakao.com"));
+
+        long memberId = data(perform(post("/api/v1/auth/kakao/login"), null, Map.of("kakaoAccessToken", "no-email-token"))
+                .andExpect(jsonPath("$.data.isNewMember").value(true)))
+                .get("memberId").asLong();
+        assertThat(memberRepository.findById(memberId).orElseThrow().getEmail()).isNull();
+
+        perform(post("/api/v1/auth/kakao/login"), null, Map.of("kakaoAccessToken", "email-token"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.isNewMember").value(false));
+        assertThat(memberRepository.findById(memberId).orElseThrow().getEmail()).isEqualTo("first@kakao.com");
+
+        perform(post("/api/v1/auth/kakao/login"), null, Map.of("kakaoAccessToken", "other-email-token"))
+                .andExpect(status().isOk());
+        assertThat(memberRepository.findById(memberId).orElseThrow().getEmail()).isEqualTo("first@kakao.com");
+    }
+
+    private KakaoUserInfoResponse kakaoUser(long kakaoId, String email) {
+        return new KakaoUserInfoResponse(kakaoId, new KakaoUserInfoResponse.KakaoAccount(
+                email, new KakaoUserInfoResponse.KakaoProfile("카카오유저", null)));
     }
 }

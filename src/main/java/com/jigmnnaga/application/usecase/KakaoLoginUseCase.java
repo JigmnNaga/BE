@@ -31,9 +31,14 @@ public class KakaoLoginUseCase {
         Optional<Member> existingMember = memberGetService.findByProviderAndProviderId(
                 AuthProvider.KAKAO, String.valueOf(kakaoUserInfoResponse.id()));
         boolean isNewMember = existingMember.isEmpty();
+        existingMember.ifPresent(member -> member.fillEmailIfAbsent(kakaoEmail(kakaoUserInfoResponse)));
         Member member = existingMember
                 .orElseGet(() -> memberSaveService.save(memberMapper.toMember(kakaoUserInfoResponse)));
 
         return loginTokenIssuer.issue(member, isNewMember);
+    }
+
+    private String kakaoEmail(KakaoUserInfoResponse kakaoUserInfoResponse) {
+        return kakaoUserInfoResponse.kakaoAccount() == null ? null : kakaoUserInfoResponse.kakaoAccount().email();
     }
 }

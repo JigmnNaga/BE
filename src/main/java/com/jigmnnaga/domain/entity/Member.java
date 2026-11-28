@@ -119,6 +119,13 @@ public class Member extends BaseEntity {
         this.nickname = nickname;
     }
 
+    // 가입 당시 이메일 동의를 받지 못한 회원은 이후 로그인에서 받은 이메일로 채운다.
+    public void fillEmailIfAbsent(String email) {
+        if (this.email == null && email != null && !email.isBlank()) {
+            this.email = email;
+        }
+    }
+
     public void changeProfileColor(ProfileColor profileColor) {
         this.profileColor = profileColor;
     }
